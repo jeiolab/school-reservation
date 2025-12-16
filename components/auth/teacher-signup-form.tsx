@@ -17,9 +17,9 @@ const teacherSignupSchema = z.object({
 })
 
 // 교직원 인증 코드
-// 환경 변수가 설정되어 있으면 사용하고, 없으면 기본값 사용 (개발용)
+// 환경 변수 NEXT_PUBLIC_TEACHER_VERIFICATION_CODE를 .env.local 파일에 설정하세요
 const TEACHER_VERIFICATION_CODE = 
-  process.env.NEXT_PUBLIC_TEACHER_VERIFICATION_CODE || 'TEACHER2024'
+  process.env.NEXT_PUBLIC_TEACHER_VERIFICATION_CODE || ''
 
 export default function TeacherSignupForm() {
   const router = useRouter()
@@ -40,6 +40,12 @@ export default function TeacherSignupForm() {
 
     try {
       // 인증 코드 확인
+      if (!TEACHER_VERIFICATION_CODE) {
+        setError('인증 코드가 설정되지 않았습니다. 관리자에게 문의하세요.')
+        setLoading(false)
+        return
+      }
+      
       if (formData.verificationCode !== TEACHER_VERIFICATION_CODE) {
         setError('인증 코드가 올바르지 않습니다.')
         setLoading(false)
@@ -163,7 +169,7 @@ export default function TeacherSignupForm() {
               disabled={loading}
             />
             <p className="text-xs text-gray-500">
-              교직원 인증 코드가 필요합니다. (테스트용: TEACHER2024)
+              교직원 인증 코드가 필요합니다. 관리자에게 문의하세요.
             </p>
           </div>
           <div className="space-y-2">
