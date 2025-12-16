@@ -1,0 +1,299 @@
+import { redirect } from 'next/navigation'
+import { createClient } from '@/utils/supabase/server'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import Link from 'next/link'
+import { Calendar, Clock, MapPin, Users, Plus, LogOut, Settings, AlertCircle } from 'lucide-react'
+import { format } from 'date-fns'
+import LogoutButton from '@/components/auth/logout-button'
+import DeleteAccountButton from '@/components/auth/delete-account-button'
+import { formatStudentId } from '@/lib/utils'
+
+async function getUpcomingReservations(userId: string) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('reservations')
+    .select(`
+      *,
+      rooms (
+        id,
+        name,
+        location
+      )
+    `)
+    .eq('user_id', userId)
+    .in('status', ['pending', 'confirmed'])
+    .gte('start_time', new Date().toISOString())
+    .order('start_time', { ascending: true })
+    .limit(10)
+
+  if (error) {
+    console.error('Error fetching reservations:', error)
+    return []
+  }
+
+  return data || []
+}
+
+async function getRejectedReservations(userId: string) {
+  const supabase = await createClient()
+  
+  // 모든 거부된 예약을 가져옴 (필터링 없이)
+  const { data, error } = await supabase
+    .from('reservations')
+    .select(`
+      *,
+      rooms (
+        id,
+        name,
+        location
+      )
+    `)
+    .eq('user_id', userId)
+    .eq('status', 'rejected')
+    .order('created_at', { ascending: false })
+    .limit(10)
+
+  if (error) {
+    console.error('Error fetching rejected reservations:', error)
+    return []
+  }
+
+  return data
+}
+
+function calculateDaysUntil(date: string | Date) {
+  const target = typeof date === 'string' ? new Date(date) : date
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  target.setHours(0, 0, 0, 0)
+  const diffTime = target.getTime() - today.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return diffDays
+}
+
+export default async function DashboardPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  // Get user profile
+  const { data: userProfile } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  const upcomingReservations = await getUpcomingReservations(user.id)
+  const rejectedReservations = await getRejectedReservations(user.id)
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b sticky top-0 z-10 shadow-sm">
+        <div className="container mx-auto px-4 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">대시보드</h1>
+            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+              {(userProfile?.role === 'admin' || userProfile?.role === 'teacher') && (
+                <Link href="/admin">
+                  <Button variant="ghost" size="sm" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
+                    <Settings className="w-4 h-4" />
+                    <span className="hidden sm:inline">관리자</span>
+                  </Button>
+                </Link>
+              )}
+              <span className="text-xs sm:text-sm text-gray-600 truncate max-w-[100px] sm:max-w-none">
+                {userProfile?.name || user.email}
+                {userProfile?.student_id && ` (${formatStudentId(userProfile.student_id)})`}
+                님
+              </span>
+              <LogoutButton />
+              <DeleteAccountButton />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-4xl">
+        {/* Welcome Section */}
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            안녕하세요, {userProfile?.name || '학생'}
+            {userProfile?.student_id && ` (${formatStudentId(userProfile.student_id)})`}
+            님
+          </h2>
+          <p className="text-sm sm:text-base text-gray-600">
+            특별실 예약을 시작해보세요
+          </p>
+        </div>
+
+        {/* Quick Action Button */}
+        <div className="mb-6 sm:mb-8">
+          <Link href="/booking">
+            <Button size="lg" className="w-full sm:w-auto text-base sm:text-lg py-6 sm:py-7 px-6 sm:px-8">
+              <Plus className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
+              새 예약하기
+            </Button>
+          </Link>
+        </div>
+
+        {/* Upcoming Reservations */}
+        <div className="mb-6 sm:mb-8">
+          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
+            다가오는 예약
+          </h3>
+          {upcomingReservations.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 sm:py-12 text-center text-gray-500 text-sm sm:text-base">
+                예정된 예약이 없습니다.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3 sm:space-y-4">
+              {upcomingReservations.map((reservation: any) => {
+                const daysUntil = calculateDaysUntil(reservation.start_time)
+                const room = reservation.rooms
+
+                return (
+                  <Card key={reservation.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader className="pb-3 sm:pb-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg sm:text-xl mb-1 truncate">
+                            {room?.name || '알 수 없음'}
+                          </CardTitle>
+                          <CardDescription className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2">
+                            <span className="flex items-center gap-1 text-xs sm:text-sm">
+                              <MapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                              <span className="truncate">{room?.location || '위치 정보 없음'}</span>
+                            </span>
+                            <span className="flex items-center gap-1 text-xs sm:text-sm">
+                              <Users className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                              최대 {Array.isArray(reservation.attendees) ? reservation.attendees.length : 0}명
+                            </span>
+                          </CardDescription>
+                        </div>
+                        {daysUntil >= 0 && (
+                          <div className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold flex-shrink-0">
+                            D-{daysUntil}
+                          </div>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-2 sm:space-y-3">
+                        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                          <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                          <span>
+                            {format(new Date(reservation.start_time), 'yyyy년 MM월 dd일')}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                          <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                          <span>
+                            {format(new Date(reservation.start_time), 'HH:mm')} - {format(new Date(reservation.end_time), 'HH:mm')}
+                          </span>
+                        </div>
+                        <div className="mt-2 sm:mt-3">
+                          <span className={`inline-block px-2 sm:px-3 py-1 rounded text-xs font-medium ${
+                            reservation.status === 'confirmed' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {reservation.status === 'confirmed' ? '승인됨' : '대기중'}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* 거부된 예약 섹션 */}
+        {rejectedReservations.length > 0 ? (
+          <div className="mb-6 sm:mb-8">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
+              거부된 예약
+            </h3>
+            <div className="space-y-3 sm:space-y-4">
+              {rejectedReservations.map((reservation: any) => {
+                const room = reservation.rooms
+
+                return (
+                  <Card key={reservation.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-red-500">
+                    <CardHeader className="pb-3 sm:pb-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg sm:text-xl mb-1 truncate">
+                            {room?.name || '알 수 없음'}
+                          </CardTitle>
+                          <CardDescription className="flex items-center gap-2 mt-2">
+                            <span className="flex items-center gap-1 text-xs sm:text-sm">
+                              <MapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                              <span className="truncate">{room?.location || '위치 정보 없음'}</span>
+                            </span>
+                          </CardDescription>
+                        </div>
+                        <span className="bg-red-100 text-red-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold flex-shrink-0">
+                          거부됨
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-2 sm:space-y-3">
+                        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                          <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                          <span>
+                            {format(new Date(reservation.start_time), 'yyyy년 MM월 dd일')}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                          <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                          <span>
+                            {format(new Date(reservation.start_time), 'HH:mm')} - {format(new Date(reservation.end_time), 'HH:mm')}
+                          </span>
+                        </div>
+                        <div className="mt-2 sm:mt-3 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-md">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs sm:text-sm font-medium text-red-800 mb-1">거부 사유</p>
+                              {reservation.rejection_reason && reservation.rejection_reason.trim() ? (
+                                <p className="text-xs sm:text-sm text-red-700 break-words">{reservation.rejection_reason}</p>
+                              ) : (
+                                <p className="text-xs sm:text-sm text-gray-600 italic">거부 사유가 제공되지 않았습니다.</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="mb-6 sm:mb-8">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
+              거부된 예약
+            </h3>
+            <Card>
+              <CardContent className="py-8 sm:py-12 text-center text-gray-500 text-sm sm:text-base">
+                거부된 예약이 없습니다.
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+

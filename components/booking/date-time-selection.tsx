@@ -1,0 +1,298 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { createClient } from '@/utils/supabase/client'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Clock, AlertCircle } from 'lucide-react'
+import { format, addDays, isAfter, setHours, setMinutes, startOfDay } from 'date-fns'
+import { Reservation } from '@/types/supabase'
+import { cn } from '@/lib/utils'
+
+interface DateTimeSelectionProps {
+  roomId: string
+  onSelect: (startTime: string, endTime: string) => void
+  selectedStartTime?: string
+  selectedEndTime?: string
+}
+
+// Generate time slots (30-minute intervals from 8:00 to 22:00)
+// 시작 시간: 8:00 ~ 21:30
+// 종료 시간: 8:30 ~ 22:00
+const generateTimeSlots = () => {
+  const slots = []
+  for (let hour = 8; hour <= 22; hour++) {
+    for (let minute = 0; minute < 60; minute += 30) {
+      // 22:00은 종료 시간으로만 사용 가능 (시작 시간은 21:30까지)
+      if (hour === 22 && minute === 0) {
+        slots.push(format(setMinutes(setHours(new Date(), hour), minute), 'HH:mm'))
+        break
+      }
+      const time = setMinutes(setHours(new Date(), hour), minute)
+      slots.push(format(time, 'HH:mm'))
+    }
+  }
+  return slots
+}
+
+const timeSlots = generateTimeSlots()
+
+export default function DateTimeSelection({
+  roomId,
+  onSelect,
+  selectedStartTime,
+  selectedEndTime,
+}: DateTimeSelectionProps) {
+  const [selectedDate, setSelectedDate] = useState<string>(
+    format(new Date(), 'yyyy-MM-dd')
+  )
+  const [startTime, setStartTime] = useState<string>(
+    selectedStartTime ? format(new Date(selectedStartTime), 'HH:mm') : ''
+  )
+  const [endTime, setEndTime] = useState<string>(
+    selectedEndTime ? format(new Date(selectedEndTime), 'HH:mm') : ''
+  )
+  const [bookedSlots, setBookedSlots] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    async function fetchBookedSlots() {
+      if (!roomId || !selectedDate) return
+
+      setLoading(true)
+      const supabase = createClient()
+
+      const startOfSelectedDay = startOfDay(new Date(selectedDate))
+      const endOfSelectedDay = addDays(startOfSelectedDay, 1)
+
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('start_time, end_time')
+        .eq('room_id', roomId)
+        .in('status', ['pending', 'confirmed'])
+        .gte('start_time', startOfSelectedDay.toISOString())
+        .lt('start_time', endOfSelectedDay.toISOString())
+
+      if (error) {
+        console.error('Error fetching booked slots:', error)
+      } else {
+        const booked = new Set<string>()
+        data?.forEach((reservation: Reservation) => {
+          const start = new Date(reservation.start_time)
+          const end = new Date(reservation.end_time)
+          let current = new Date(start)
+
+          while (current < end) {
+            booked.add(format(current, 'HH:mm'))
+            current = new Date(current.getTime() + 30 * 60 * 1000) // Add 30 minutes
+          }
+        })
+        setBookedSlots(booked)
+      }
+      setLoading(false)
+    }
+
+    fetchBookedSlots()
+  }, [roomId, selectedDate])
+
+  const isSlotBooked = (slot: string) => {
+    return bookedSlots.has(slot)
+  }
+
+  const isSlotDisabled = (slot: string, isStartTime: boolean = true) => {
+    if (isSlotBooked(slot)) return true
+    
+    const [slotHour, slotMinute] = slot.split(':').map(Number)
+    
+    // 시작 시간 선택 시: 21:30까지만 선택 가능
+    if (isStartTime) {
+      if (slotHour > 21 || (slotHour === 21 && slotMinute > 30)) {
+        return true
+      }
+    }
+    
+    // 종료 시간 선택 시: 22:00까지만 선택 가능
+    if (!isStartTime) {
+      if (slotHour > 22 || (slotHour === 22 && slotMinute > 0)) {
+        return true
+      }
+    }
+    
+    if (!startTime) return false
+
+    const [startHour, startMinute] = startTime.split(':').map(Number)
+
+    const startDateTime = setMinutes(setHours(new Date(), startHour), startMinute)
+    const slotDateTime = setMinutes(setHours(new Date(), slotHour), slotMinute)
+
+    return slotDateTime <= startDateTime
+  }
+
+  const handleConfirm = () => {
+    if (!startTime || !endTime || !selectedDate) return
+
+    const startDateTime = new Date(`${selectedDate}T${startTime}:00`)
+    const endDateTime = new Date(`${selectedDate}T${endTime}:00`)
+
+    if (endDateTime <= startDateTime) {
+      alert('종료 시간은 시작 시간보다 늦어야 합니다.')
+      return
+    }
+
+    onSelect(startDateTime.toISOString(), endDateTime.toISOString())
+  }
+
+  const minDate = format(new Date(), 'yyyy-MM-dd')
+  const maxDate = format(addDays(new Date(), 30), 'yyyy-MM-dd')
+
+  return (
+    <div className="space-y-6">
+      {/* Date Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle>날짜 선택</CardTitle>
+          <CardDescription>예약할 날짜를 선택해주세요</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Label htmlFor="date">날짜</Label>
+            <Input
+              id="date"
+              type="date"
+              min={minDate}
+              max={maxDate}
+              value={selectedDate}
+              onChange={(e) => {
+                setSelectedDate(e.target.value)
+                setStartTime('')
+                setEndTime('')
+              }}
+            />
+            <p className="text-sm text-gray-500">
+              최대 30일 후까지 예약 가능합니다
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Time Selection */}
+      {selectedDate && (
+        <Card>
+          <CardHeader>
+            <CardTitle>시간 선택</CardTitle>
+            <CardDescription>
+              시작 시간과 종료 시간을 선택해주세요 (30분 단위)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-center py-8 text-gray-500">
+                예약 가능한 시간을 확인하는 중...
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm sm:text-base">시작 시간 (21:30까지 선택 가능)</Label>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-2">
+                    {timeSlots.map((slot) => {
+                      const disabled = isSlotDisabled(slot, true)
+                      const selected = startTime === slot
+
+                      return (
+                        <Button
+                          key={slot}
+                          type="button"
+                          variant={selected ? 'default' : 'outline'}
+                          size="sm"
+                          disabled={disabled}
+                          onClick={() => {
+                            setStartTime(slot)
+                            if (endTime && slot >= endTime) {
+                              setEndTime('')
+                            }
+                          }}
+                          className={cn(
+                            'text-xs sm:text-sm py-2 sm:py-2.5',
+                            disabled && 'opacity-50 cursor-not-allowed',
+                            isSlotBooked(slot) && 'bg-red-100 border-red-300'
+                          )}
+                        >
+                          {slot}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                  {bookedSlots.size > 0 && (
+                    <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      빨간색으로 표시된 시간은 이미 예약되었습니다
+                    </p>
+                  )}
+                </div>
+
+                {startTime && (
+                  <div>
+                    <Label>종료 시간 (22:00까지 선택 가능)</Label>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-2">
+                      {timeSlots.map((slot) => {
+                        const [startHour, startMinute] = startTime.split(':').map(Number)
+                        const [slotHour, slotMinute] = slot.split(':').map(Number)
+
+                        const startDateTime = setMinutes(setHours(new Date(), startHour), startMinute)
+                        const slotDateTime = setMinutes(setHours(new Date(), slotHour), slotMinute)
+
+                        // 종료 시간은 시작 시간보다 늦어야 함
+                        const disabled: boolean =
+                          slotDateTime <= startDateTime ||
+                          isSlotBooked(slot) ||
+                          (startTime ? slot <= startTime : false) ||
+                          isSlotDisabled(slot, false)
+
+                        const selected = endTime === slot
+
+                        return (
+                          <Button
+                            key={slot}
+                            type="button"
+                            variant={selected ? 'default' : 'outline'}
+                            size="sm"
+                            disabled={disabled}
+                            onClick={() => setEndTime(slot)}
+                            className={cn(
+                              disabled ? 'opacity-50 cursor-not-allowed' : '',
+                              isSlotBooked(slot) ? 'bg-red-100 border-red-300' : ''
+                            )}
+                          >
+                            {slot}
+                          </Button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {startTime && endTime && (
+                  <div className="pt-4 border-t">
+                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
+                      <Clock className="w-4 h-4" />
+                      <span>
+                        {format(new Date(`${selectedDate}T${startTime}:00`), 'yyyy년 MM월 dd일 HH:mm')} -{' '}
+                        {format(new Date(`${selectedDate}T${endTime}:00`), 'HH:mm')}
+                      </span>
+                    </div>
+                    <Button onClick={handleConfirm} className="w-full">
+                      시간 확인
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
