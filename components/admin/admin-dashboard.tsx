@@ -100,7 +100,7 @@ export default function AdminDashboard() {
 
     // 거부인 경우 rejection_reason 추가, 승인인 경우 null로 설정
     if (status === 'rejected') {
-      updateData.rejection_reason = reason.trim()
+      updateData.rejection_reason = (reason || '').trim()
     } else {
       updateData.rejection_reason = null
     }
