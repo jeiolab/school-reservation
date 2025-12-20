@@ -1,3 +1,12 @@
+-- Function to update updated_at timestamp (create if not exists)
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = TIMEZONE('utc', NOW());
+  RETURN NEW;
+END;
+$$ language 'plpgsql';
+
 -- System Notices table for global announcements
 CREATE TABLE IF NOT EXISTS system_notices (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -8,6 +17,7 @@ CREATE TABLE IF NOT EXISTS system_notices (
 );
 
 -- Trigger to automatically update updated_at
+DROP TRIGGER IF EXISTS update_system_notices_updated_at ON system_notices;
 CREATE TRIGGER update_system_notices_updated_at BEFORE UPDATE ON system_notices
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
