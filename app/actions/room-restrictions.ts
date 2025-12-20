@@ -156,7 +156,11 @@ export async function getAllRooms() {
       return []
     }
 
-    return data || []
+    // id를 문자열로 변환하여 반환
+    return (data || []).map(room => ({
+      ...room,
+      id: String(room.id)
+    }))
   } catch (error) {
     console.error('Error in getAllRooms:', error)
     return []

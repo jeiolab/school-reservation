@@ -35,6 +35,7 @@ export default function RoomRestrictionManagement() {
   const [restrictions, setRestrictions] = useState<RoomRestriction[]>([])
   const [selectedRoomId, setSelectedRoomId] = useState('')
   const [restrictedHours, setRestrictedHours] = useState('')
+  const [customRestrictedHours, setCustomRestrictedHours] = useState('')
   const [reason, setReason] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -59,7 +60,9 @@ export default function RoomRestrictionManagement() {
     setIsSubmitting(true)
     setMessage(null)
 
-    if (!selectedRoomId || !restrictedHours || !reason) {
+    const finalRestrictedHours = restrictedHours === '기타' ? customRestrictedHours : restrictedHours
+    
+    if (!selectedRoomId || !finalRestrictedHours || !reason) {
       setMessage({ type: 'error', text: '모든 필드를 입력해주세요.' })
       setIsSubmitting(false)
       return
@@ -67,7 +70,7 @@ export default function RoomRestrictionManagement() {
 
     const formData = new FormData()
     formData.append('room_id', selectedRoomId)
-    formData.append('restricted_hours', restrictedHours)
+    formData.append('restricted_hours', finalRestrictedHours)
     formData.append('reason', reason)
 
     const result = await createRoomRestriction(formData)
@@ -78,6 +81,7 @@ export default function RoomRestrictionManagement() {
       setMessage({ type: 'success', text: '사용금지 공지가 성공적으로 등록되었습니다. 해당 특별실이 자동으로 사용중지 상태로 변경되었습니다.' })
       setSelectedRoomId('')
       setRestrictedHours('')
+      setCustomRestrictedHours('')
       setReason('')
       // 목록 새로고침
       const restrictionsData = await getActiveRoomRestrictions()
@@ -129,11 +133,15 @@ export default function RoomRestrictionManagement() {
               <Label htmlFor="room_id">특별실 선택 *</Label>
               <Select value={selectedRoomId} onValueChange={setSelectedRoomId} disabled={isSubmitting}>
                 <SelectTrigger id="room_id">
-                  <SelectValue placeholder="사용금지를 적용할 특별실을 선택하세요" />
+                  <SelectValue placeholder="사용금지를 적용할 특별실을 선택하세요">
+                    {selectedRoomId && rooms.find(r => r.id === selectedRoomId) 
+                      ? `${rooms.find(r => r.id === selectedRoomId)?.name} (${rooms.find(r => r.id === selectedRoomId)?.location})`
+                      : '사용금지를 적용할 특별실을 선택하세요'}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {rooms.map((room) => (
-                    <SelectItem key={room.id} value={room.id}>
+                    <SelectItem key={room.id} value={String(room.id)}>
                       {room.name} ({room.location})
                     </SelectItem>
                   ))}
@@ -146,17 +154,39 @@ export default function RoomRestrictionManagement() {
 
             <div className="space-y-2">
               <Label htmlFor="restricted_hours">사용금지 시간대 *</Label>
-              <Input
-                id="restricted_hours"
-                placeholder="예: 평일 18:00-20:00, 주말 전체, 2024년 12월 25일 전체"
-                value={restrictedHours}
-                onChange={(e) => setRestrictedHours(e.target.value)}
-                disabled={isSubmitting}
-                required
-              />
-              <p className="text-xs text-gray-500">
-                사용 금지 시간대를 명확하게 입력해주세요
-              </p>
+              <Select value={restrictedHours} onValueChange={setRestrictedHours} disabled={isSubmitting}>
+                <SelectTrigger id="restricted_hours">
+                  <SelectValue placeholder="사용금지 시간대를 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="평일 전체">평일 전체</SelectItem>
+                  <SelectItem value="주말 전체">주말 전체</SelectItem>
+                  <SelectItem value="평일 18:00 이후">평일 18:00 이후</SelectItem>
+                  <SelectItem value="평일 19:00 이후">평일 19:00 이후</SelectItem>
+                  <SelectItem value="평일 20:00 이후">평일 20:00 이후</SelectItem>
+                  <SelectItem value="평일 18:00-20:00">평일 18:00-20:00</SelectItem>
+                  <SelectItem value="평일 19:00-21:00">평일 19:00-21:00</SelectItem>
+                  <SelectItem value="주말 10:00-12:00">주말 10:00-12:00</SelectItem>
+                  <SelectItem value="주말 14:00-18:00">주말 14:00-18:00</SelectItem>
+                  <SelectItem value="전체 기간">전체 기간</SelectItem>
+                  <SelectItem value="기타">기타 (직접 입력)</SelectItem>
+                </SelectContent>
+              </Select>
+              {restrictedHours === '기타' && (
+                <Input
+                  placeholder="사용금지 시간대를 직접 입력하세요 (예: 2024년 12월 25일 전체)"
+                  value={customRestrictedHours}
+                  onChange={(e) => setCustomRestrictedHours(e.target.value)}
+                  disabled={isSubmitting}
+                  className="mt-2"
+                  required
+                />
+              )}
+              {restrictedHours && restrictedHours !== '기타' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  선택된 시간대: <span className="font-medium">{restrictedHours}</span>
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
