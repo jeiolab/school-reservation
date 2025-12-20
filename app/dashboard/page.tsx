@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import LogoutButton from '@/components/auth/logout-button'
 import DeleteAccountButton from '@/components/auth/delete-account-button'
 import { formatStudentId } from '@/lib/utils'
+import { getSystemNotice } from '@/app/actions/system-notices'
 
 async function getUpcomingReservations(userId: string) {
   const supabase = await createClient()
@@ -89,6 +90,7 @@ export default async function DashboardPage() {
 
   const upcomingReservations = await getUpcomingReservations(user.id)
   const rejectedReservations = await getRejectedReservations(user.id)
+  const systemNotice = await getSystemNotice()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -130,6 +132,34 @@ export default async function DashboardPage() {
             특별실 예약을 시작해보세요
           </p>
         </div>
+
+        {/* System Notice */}
+        {(systemNotice?.restricted_hours || systemNotice?.notes) && (
+          <div className="mb-6 sm:mb-8">
+            <Card className="border-l-4 border-l-blue-500">
+              <CardHeader>
+                <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-blue-600" />
+                  공지사항
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {systemNotice.restricted_hours && (
+                  <div className="p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <p className="text-xs sm:text-sm font-medium text-yellow-800 mb-1">⚠️ 사용금지시간</p>
+                    <p className="text-xs sm:text-sm text-yellow-700 whitespace-pre-wrap">{systemNotice.restricted_hours}</p>
+                  </div>
+                )}
+                {systemNotice.notes && (
+                  <div className="p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-md">
+                    <p className="text-xs sm:text-sm font-medium text-blue-800 mb-1">ℹ️ 유의사항</p>
+                    <p className="text-xs sm:text-sm text-blue-700 whitespace-pre-wrap">{systemNotice.notes}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Quick Action Button */}
         <div className="mb-6 sm:mb-8">

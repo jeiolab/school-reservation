@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import AdminDashboard from '@/components/admin/admin-dashboard'
+import SystemNoticeManagement from '@/components/admin/system-notice-management'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Building2, ArrowLeft } from 'lucide-react'
@@ -44,7 +45,10 @@ export default async function AdminPage() {
             </Button>
           </Link>
         </div>
-        <AdminDashboard />
+        <div className="space-y-6">
+          <SystemNoticeManagement />
+          <AdminDashboard />
+        </div>
       </div>
     </div>
   )

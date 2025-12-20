@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { createRoom, deleteRoom } from '@/app/actions/rooms'
+import { createRoom, updateRoom, deleteRoom } from '@/app/actions/rooms'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Plus, Trash2, Users, MapPin, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Users, MapPin, Loader2, Edit } from 'lucide-react'
 import { Room } from '@/types/supabase'
 import { useRouter } from 'next/navigation'
 
@@ -35,8 +35,10 @@ export default function RoomManagement() {
   const [rooms, setRooms] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [roomToDelete, setRoomToDelete] = useState<string | null>(null)
+  const [roomToEdit, setRoomToEdit] = useState<Room | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -84,6 +86,27 @@ export default function RoomManagement() {
     setError(null)
   }
 
+  const handleOpenEditDialog = (room: Room) => {
+    setRoomToEdit(room)
+    setFormData({
+      name: room.name,
+      capacity: room.capacity.toString(),
+      location: room.location,
+      facilities: room.facilities ? room.facilities.join(', ') : '',
+      restricted_hours: room.restricted_hours || '',
+      notes: room.notes || '',
+    })
+    setIsEditDialogOpen(true)
+    setError(null)
+  }
+
+  const handleCloseEditDialog = () => {
+    setIsEditDialogOpen(false)
+    setRoomToEdit(null)
+    setFormData({ name: '', capacity: '', location: '', facilities: '', restricted_hours: '', notes: '' })
+    setError(null)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -106,6 +129,35 @@ export default function RoomManagement() {
     } else {
       setIsSubmitting(false)
       handleCloseDialog()
+      await fetchRooms()
+      router.refresh()
+    }
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!roomToEdit) return
+
+    setIsSubmitting(true)
+    setError(null)
+
+    const formDataObj = new FormData()
+    formDataObj.append('name', formData.name)
+    formDataObj.append('capacity', formData.capacity)
+    formDataObj.append('location', formData.location)
+    formDataObj.append('facilities', formData.facilities)
+    formDataObj.append('restricted_hours', formData.restricted_hours)
+    formDataObj.append('notes', formData.notes)
+    formDataObj.append('is_available', roomToEdit.is_available ? 'true' : 'false')
+
+    const result = await updateRoom(roomToEdit.id, formDataObj)
+
+    if (result.error) {
+      setError(result.error)
+      setIsSubmitting(false)
+    } else {
+      setIsSubmitting(false)
+      handleCloseEditDialog()
       await fetchRooms()
       router.refresh()
     }
@@ -317,14 +369,24 @@ export default function RoomManagement() {
                       </div>
                     </CardDescription>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDeleteClick(room.id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleOpenEditDialog(room)}
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteClick(room.id)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
@@ -368,6 +430,135 @@ export default function RoomManagement() {
           ))}
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>실 수정</DialogTitle>
+            <DialogDescription>
+              특별실 정보를 수정해주세요
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit}>
+            <div className="space-y-4 py-4">
+              {error && (
+                <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
+                  {error}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">실 이름 *</Label>
+                <Input
+                  id="edit-name"
+                  placeholder="예: 음악실"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  required
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-capacity">수용 인원 *</Label>
+                <Input
+                  id="edit-capacity"
+                  type="number"
+                  min="1"
+                  placeholder="예: 30"
+                  value={formData.capacity}
+                  onChange={(e) =>
+                    setFormData({ ...formData, capacity: e.target.value })
+                  }
+                  required
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-location">위치 *</Label>
+                <Input
+                  id="edit-location"
+                  placeholder="예: 2층"
+                  value={formData.location}
+                  onChange={(e) =>
+                    setFormData({ ...formData, location: e.target.value })
+                  }
+                  required
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-facilities">설비 (선택)</Label>
+                <Input
+                  id="edit-facilities"
+                  placeholder="예: 피아노, 스피커, 마이크 (쉼표로 구분)"
+                  value={formData.facilities}
+                  onChange={(e) =>
+                    setFormData({ ...formData, facilities: e.target.value })
+                  }
+                  disabled={isSubmitting}
+                />
+                <p className="text-xs text-gray-500">
+                  여러 설비를 입력할 경우 쉼표로 구분해주세요
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-restricted_hours">사용금지시간 (선택)</Label>
+                <Input
+                  id="edit-restricted_hours"
+                  placeholder="예: 평일 18:00-20:00, 주말 전체"
+                  value={formData.restricted_hours}
+                  onChange={(e) =>
+                    setFormData({ ...formData, restricted_hours: e.target.value })
+                  }
+                  disabled={isSubmitting}
+                />
+                <p className="text-xs text-gray-500">
+                  사용 금지 시간대를 입력해주세요
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-notes">유의사항 (선택)</Label>
+                <textarea
+                  id="edit-notes"
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="예: 음향 장비 사용 시 사전 신고 필요, 음식물 반입 금지 등"
+                  value={formData.notes}
+                  onChange={(e) =>
+                    setFormData({ ...formData, notes: e.target.value })
+                  }
+                  disabled={isSubmitting}
+                  rows={4}
+                />
+                <p className="text-xs text-gray-500">
+                  예약 시 사용자에게 안내할 유의사항을 입력해주세요
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseEditDialog}
+                disabled={isSubmitting}
+              >
+                취소
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    수정 중...
+                  </>
+                ) : (
+                  '수정하기'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
