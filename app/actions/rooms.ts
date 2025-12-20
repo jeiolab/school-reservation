@@ -9,6 +9,8 @@ const createRoomSchema = z.object({
   capacity: z.number().min(1, '수용 인원은 1명 이상이어야 합니다'),
   location: z.string().min(1, '위치를 입력해주세요'),
   facilities: z.array(z.string()).optional(),
+  restricted_hours: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
   is_available: z.boolean().optional().default(true),
 })
 
@@ -38,6 +40,8 @@ export async function createRoom(formData: FormData) {
     const capacityValue = capacityString ? parseInt(capacityString, 10) : NaN
     const location = formData.get('location') as string
     const facilitiesString = formData.get('facilities') as string
+    const restricted_hours = formData.get('restricted_hours') as string | null
+    const notes = formData.get('notes') as string | null
     const is_available = formData.get('is_available') === 'true'
 
     // capacity 유효성 검사
@@ -56,6 +60,8 @@ export async function createRoom(formData: FormData) {
       capacity: capacityValue,
       location: location || '',
       facilities: facilities.length > 0 ? facilities : undefined,
+      restricted_hours: restricted_hours && restricted_hours.trim() ? restricted_hours.trim() : null,
+      notes: notes && notes.trim() ? notes.trim() : null,
       is_available: is_available ?? true,
     })
 
@@ -67,6 +73,8 @@ export async function createRoom(formData: FormData) {
         capacity: validatedData.capacity,
         location: validatedData.location,
         facilities: validatedData.facilities || [],
+        restricted_hours: validatedData.restricted_hours,
+        notes: validatedData.notes,
         is_available: validatedData.is_available,
       })
       .select()

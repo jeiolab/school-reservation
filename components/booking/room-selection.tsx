@@ -109,6 +109,18 @@ export default function RoomSelection({ onSelect, selectedRoomId }: RoomSelectio
                   ))}
                 </div>
               )}
+              {room.restricted_hours && (
+                <div className="mt-2 sm:mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-xs font-medium text-yellow-800 mb-1">⚠️ 사용금지시간</p>
+                  <p className="text-xs text-yellow-700">{room.restricted_hours}</p>
+                </div>
+              )}
+              {room.notes && (
+                <div className="mt-2 sm:mt-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-xs font-medium text-blue-800 mb-1">ℹ️ 유의사항</p>
+                  <p className="text-xs text-blue-700 whitespace-pre-wrap">{room.notes}</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

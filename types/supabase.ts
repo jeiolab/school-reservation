@@ -46,6 +46,8 @@ export interface Database {
           location: string
           facilities: string[]
           is_available: boolean
+          restricted_hours: string | null
+          notes: string | null
           created_at: string
           updated_at: string
         }
@@ -56,6 +58,8 @@ export interface Database {
           location: string
           facilities?: string[]
           is_available?: boolean
+          restricted_hours?: string | null
+          notes?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -66,6 +70,8 @@ export interface Database {
           location?: string
           facilities?: string[]
           is_available?: boolean
+          restricted_hours?: string | null
+          notes?: string | null
           created_at?: string
           updated_at?: string
         }

@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "특별실 예약 시스템",
-  description: "고등학교 특별실 예약 관리 시스템",
+  title: "능주고 특별실 예약 시스템",
+  description: "능주고등학교 특별실 예약 관리 시스템",
 };
 
 export default function RootLayout({
@@ -20,4 +20,7 @@ export default function RootLayout({
     </html>
   );
 }
+
+
+
 

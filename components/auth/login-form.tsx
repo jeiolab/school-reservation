@@ -1,19 +1,59 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 
 export default function LoginForm() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
+  const [autoLogin, setAutoLogin] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // 저장된 로그인 정보 불러오기
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedEmail = localStorage.getItem('saved_email')
+      const savedAutoLogin = localStorage.getItem('auto_login') === 'true'
+      
+      if (savedEmail) {
+        setEmail(savedEmail)
+        setRememberMe(true)
+      }
+      
+      if (savedAutoLogin) {
+        setAutoLogin(true)
+        // 자동 로그인 시도
+        attemptAutoLogin(savedEmail)
+      }
+    }
+  }, [])
+
+  const attemptAutoLogin = async (savedEmail: string | null) => {
+    if (!savedEmail) return
+
+    try {
+      const supabase = createClient()
+      // 세션이 있는지 확인
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (session) {
+        // 이미 로그인되어 있으면 대시보드로 이동
+        window.location.href = '/dashboard'
+      }
+    } catch (err) {
+      // 자동 로그인 실패 시 무시
+      console.log('Auto login not available')
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,8 +75,22 @@ export default function LoginForm() {
 
       if (data.session) {
         // 세션을 쿠키에 저장
-        document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=3600; SameSite=Lax`
-        document.cookie = `sb-refresh-token=${data.session.refresh_token}; path=/; max-age=604800; SameSite=Lax`
+        const maxAge = autoLogin ? 604800 * 4 : 3600 // 자동로그인: 4주, 일반: 1시간
+        document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`
+        document.cookie = `sb-refresh-token=${data.session.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax`
+
+        // 로그인 정보 저장 설정
+        if (rememberMe) {
+          localStorage.setItem('saved_email', email)
+        } else {
+          localStorage.removeItem('saved_email')
+        }
+
+        if (autoLogin) {
+          localStorage.setItem('auto_login', 'true')
+        } else {
+          localStorage.removeItem('auto_login')
+        }
       }
 
       // 페이지 새로고침하여 서버에서 세션 인식
@@ -85,6 +139,41 @@ export default function LoginForm() {
               required
               disabled={loading}
             />
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="rememberMe"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked === true)}
+                disabled={loading}
+              />
+              <Label
+                htmlFor="rememberMe"
+                className="text-sm font-normal cursor-pointer"
+              >
+                이메일 저장
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="autoLogin"
+                checked={autoLogin}
+                onCheckedChange={(checked) => {
+                  setAutoLogin(checked === true)
+                  if (checked) {
+                    setRememberMe(true) // 자동로그인 선택 시 이메일 저장도 활성화
+                  }
+                }}
+                disabled={loading}
+              />
+              <Label
+                htmlFor="autoLogin"
+                className="text-sm font-normal cursor-pointer"
+              >
+                자동 로그인
+              </Label>
+            </div>
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? '로그인 중...' : '로그인'}

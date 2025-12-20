@@ -46,6 +46,8 @@ export default function RoomManagement() {
     capacity: '',
     location: '',
     facilities: '',
+    restricted_hours: '',
+    notes: '',
   })
 
   useEffect(() => {
@@ -72,13 +74,13 @@ export default function RoomManagement() {
 
   const handleOpenDialog = () => {
     setIsDialogOpen(true)
-    setFormData({ name: '', capacity: '', location: '', facilities: '' })
+    setFormData({ name: '', capacity: '', location: '', facilities: '', restricted_hours: '', notes: '' })
     setError(null)
   }
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false)
-    setFormData({ name: '', capacity: '', location: '', facilities: '' })
+    setFormData({ name: '', capacity: '', location: '', facilities: '', restricted_hours: '', notes: '' })
     setError(null)
   }
 
@@ -92,6 +94,8 @@ export default function RoomManagement() {
     formDataObj.append('capacity', formData.capacity)
     formDataObj.append('location', formData.location)
     formDataObj.append('facilities', formData.facilities)
+    formDataObj.append('restricted_hours', formData.restricted_hours)
+    formDataObj.append('notes', formData.notes)
     formDataObj.append('is_available', 'true')
 
     const result = await createRoom(formDataObj)
@@ -222,6 +226,38 @@ export default function RoomManagement() {
                     여러 설비를 입력할 경우 쉼표로 구분해주세요
                   </p>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="restricted_hours">사용금지시간 (선택)</Label>
+                  <Input
+                    id="restricted_hours"
+                    placeholder="예: 평일 18:00-20:00, 주말 전체"
+                    value={formData.restricted_hours}
+                    onChange={(e) =>
+                      setFormData({ ...formData, restricted_hours: e.target.value })
+                    }
+                    disabled={isSubmitting}
+                  />
+                  <p className="text-xs text-gray-500">
+                    사용 금지 시간대를 입력해주세요
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notes">유의사항 (선택)</Label>
+                  <textarea
+                    id="notes"
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="예: 음향 장비 사용 시 사전 신고 필요, 음식물 반입 금지 등"
+                    value={formData.notes}
+                    onChange={(e) =>
+                      setFormData({ ...formData, notes: e.target.value })
+                    }
+                    disabled={isSubmitting}
+                    rows={4}
+                  />
+                  <p className="text-xs text-gray-500">
+                    예약 시 사용자에게 안내할 유의사항을 입력해주세요
+                  </p>
+                </div>
               </div>
               <DialogFooter>
                 <Button
@@ -302,6 +338,18 @@ export default function RoomManagement() {
                         {facility}
                       </span>
                     ))}
+                  </div>
+                )}
+                {room.restricted_hours && (
+                  <div className="mb-2 sm:mb-3 p-2 sm:p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <p className="text-xs sm:text-sm font-medium text-yellow-800 mb-1">사용금지시간</p>
+                    <p className="text-xs sm:text-sm text-yellow-700">{room.restricted_hours}</p>
+                  </div>
+                )}
+                {room.notes && (
+                  <div className="mb-2 sm:mb-3 p-2 sm:p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <p className="text-xs sm:text-sm font-medium text-blue-800 mb-1">유의사항</p>
+                    <p className="text-xs sm:text-sm text-blue-700 whitespace-pre-wrap">{room.notes}</p>
                   </div>
                 )}
                 <div className="mt-2 sm:mt-3">

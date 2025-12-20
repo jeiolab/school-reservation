@@ -24,6 +24,8 @@ CREATE TABLE rooms (
   location TEXT NOT NULL,
   facilities TEXT[] DEFAULT '{}',
   is_available BOOLEAN DEFAULT true,
+  restricted_hours TEXT,
+  notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
@@ -157,4 +159,7 @@ CREATE POLICY "Admins can update reservation status"
 -- ('물리실', 40, '3층', ARRAY['실험대', '컴퓨터', '프로젝터']),
 -- ('화학실', 35, '3층', ARRAY['실험대', '후드', '안전장비']),
 -- ('미술실', 25, '1층', ARRAY['이젤', '작업대', '도구']);
+
+
+
 

@@ -26,7 +26,7 @@ export default async function LoginPage() {
         </div>
         <div className="text-center mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-            특별실 예약 시스템
+            능주고 특별실 예약 시스템
           </h1>
           <p className="text-sm sm:text-base text-gray-600">로그인하여 시작하세요</p>
         </div>
