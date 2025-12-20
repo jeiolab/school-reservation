@@ -34,19 +34,32 @@ export async function createRoomRestriction(formData: FormData) {
     // 기존 활성화된 제한이 있으면 비활성화
     const { data: existingRestriction } = await supabase
       .from('room_restrictions')
-      .select('id')
+      .select('id, restricted_hours')
       .eq('room_id', roomId)
       .eq('is_active', true)
       .single()
 
     if (existingRestriction) {
+      // 기존 제한이 "전체 기간"이었고 새 제한이 아니면 is_available 복원
+      if (existingRestriction.restricted_hours?.startsWith('전체 기간')) {
+        const { error: updateError } = await supabase
+          .from('rooms')
+          .update({ is_available: true })
+          .eq('id', roomId)
+        
+        if (updateError) {
+          console.error('Error updating room availability:', updateError)
+        }
+      }
+      
       await supabase
         .from('room_restrictions')
         .update({ is_active: false })
         .eq('id', existingRestriction.id)
     }
 
-    // 새 제한 생성 (트리거가 자동으로 is_available을 false로 변경)
+    // 새 제한 생성
+    // "전체 기간"인 경우에만 트리거가 자동으로 is_available을 false로 변경
     const { error } = await supabase
       .from('room_restrictions')
       .insert({

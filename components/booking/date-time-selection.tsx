@@ -55,6 +55,7 @@ export default function DateTimeSelection({
     selectedEndTime ? format(new Date(selectedEndTime), 'HH:mm') : ''
   )
   const [bookedSlots, setBookedSlots] = useState<Set<string>>(new Set())
+  const [restrictedSlots, setRestrictedSlots] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -67,6 +68,7 @@ export default function DateTimeSelection({
       const startOfSelectedDay = startOfDay(new Date(selectedDate))
       const endOfSelectedDay = addDays(startOfSelectedDay, 1)
 
+      // Fetch booked reservations
       const { data, error } = await supabase
         .from('reservations')
         .select('start_time, end_time')
@@ -91,6 +93,121 @@ export default function DateTimeSelection({
         })
         setBookedSlots(booked)
       }
+
+      // Fetch room restrictions
+      const { data: restrictionsData, error: restrictionsError } = await supabase
+        .from('room_restrictions')
+        .select('restricted_hours')
+        .eq('room_id', roomId)
+        .eq('is_active', true)
+
+      if (restrictionsError) {
+        console.error('Error fetching restrictions:', restrictionsError)
+      } else {
+        const restricted = new Set<string>()
+        const selectedDateObj = new Date(selectedDate)
+        const dayOfWeek = selectedDateObj.getDay() // 0=Sunday, 6=Saturday
+        const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+
+        restrictionsData?.forEach((restriction: { restricted_hours: string }) => {
+          const restrictionText = restriction.restricted_hours
+
+          // Skip "전체 기간" - handled by is_available flag
+          if (restrictionText.startsWith('전체 기간')) {
+            return
+          }
+
+          // Check weekday restrictions
+          if (restrictionText.startsWith('평일') && isWeekday) {
+            const timeMatch = restrictionText.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/)
+            if (timeMatch) {
+              const startTime = timeMatch[1]
+              const endTime = timeMatch[2]
+              // Add all time slots between start and end
+              timeSlots.forEach(slot => {
+                if (slot >= startTime && slot < endTime) {
+                  restricted.add(slot)
+                }
+              })
+            } else {
+              // Entire weekday is restricted
+              timeSlots.forEach(slot => restricted.add(slot))
+            }
+          }
+
+          // Check weekend restrictions
+          if (restrictionText.startsWith('주말') && isWeekend) {
+            const timeMatch = restrictionText.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/)
+            if (timeMatch) {
+              const startTime = timeMatch[1]
+              const endTime = timeMatch[2]
+              // Add all time slots between start and end
+              timeSlots.forEach(slot => {
+                if (slot >= startTime && slot < endTime) {
+                  restricted.add(slot)
+                }
+              })
+            } else {
+              // Entire weekend is restricted
+              timeSlots.forEach(slot => restricted.add(slot))
+            }
+          }
+
+          // Check specific date restrictions
+          const dateMatch = restrictionText.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/)
+          if (dateMatch) {
+            const restrictionYear = parseInt(dateMatch[1])
+            const restrictionMonth = parseInt(dateMatch[2]) - 1 // Month is 0-indexed
+            const restrictionDay = parseInt(dateMatch[3])
+            const restrictionDate = new Date(restrictionYear, restrictionMonth, restrictionDay)
+            
+            // Check if it's a date range
+            const rangeMatch = restrictionText.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*-\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/)
+            if (rangeMatch) {
+              const endYear = parseInt(rangeMatch[4])
+              const endMonth = parseInt(rangeMatch[5]) - 1
+              const endDay = parseInt(rangeMatch[6])
+              const endDate = new Date(endYear, endMonth, endDay)
+              
+              if (selectedDateObj >= restrictionDate && selectedDateObj <= endDate) {
+                const timeMatch = restrictionText.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/)
+                if (timeMatch) {
+                  const startTime = timeMatch[1]
+                  const endTime = timeMatch[2]
+                  timeSlots.forEach(slot => {
+                    if (slot >= startTime && slot < endTime) {
+                      restricted.add(slot)
+                    }
+                  })
+                } else {
+                  // Entire date range is restricted
+                  timeSlots.forEach(slot => restricted.add(slot))
+                }
+              }
+            } else {
+              // Single date
+              if (format(selectedDateObj, 'yyyy-MM-dd') === format(restrictionDate, 'yyyy-MM-dd')) {
+                const timeMatch = restrictionText.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/)
+                if (timeMatch) {
+                  const startTime = timeMatch[1]
+                  const endTime = timeMatch[2]
+                  timeSlots.forEach(slot => {
+                    if (slot >= startTime && slot < endTime) {
+                      restricted.add(slot)
+                    }
+                  })
+                } else {
+                  // Entire date is restricted
+                  timeSlots.forEach(slot => restricted.add(slot))
+                }
+              }
+            }
+          }
+        })
+        setRestrictedSlots(restricted)
+      }
+
       setLoading(false)
     }
 
@@ -101,8 +218,13 @@ export default function DateTimeSelection({
     return bookedSlots.has(slot)
   }
 
+  const isSlotRestricted = (slot: string) => {
+    return restrictedSlots.has(slot)
+  }
+
   const isSlotDisabled = (slot: string, isStartTime: boolean = true) => {
     if (isSlotBooked(slot)) return true
+    if (isSlotRestricted(slot)) return true
     
     const [slotHour, slotMinute] = slot.split(':').map(Number)
     
@@ -216,7 +338,8 @@ export default function DateTimeSelection({
                           className={cn(
                             'text-xs sm:text-sm py-2 sm:py-2.5',
                             disabled && 'opacity-50 cursor-not-allowed',
-                            isSlotBooked(slot) && 'bg-red-100 border-red-300'
+                            isSlotBooked(slot) && 'bg-red-100 border-red-300',
+                            isSlotRestricted(slot) && 'bg-orange-100 border-orange-300'
                           )}
                         >
                           {slot}
@@ -224,11 +347,21 @@ export default function DateTimeSelection({
                       )
                     })}
                   </div>
-                  {bookedSlots.size > 0 && (
-                    <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      빨간색으로 표시된 시간은 이미 예약되었습니다
-                    </p>
+                  {(bookedSlots.size > 0 || restrictedSlots.size > 0) && (
+                    <div className="text-xs text-gray-500 mt-2 space-y-1">
+                      {bookedSlots.size > 0 && (
+                        <p className="flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          빨간색으로 표시된 시간은 이미 예약되었습니다
+                        </p>
+                      )}
+                      {restrictedSlots.size > 0 && (
+                        <p className="flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          주황색으로 표시된 시간은 사용금지 시간입니다
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -262,7 +395,8 @@ export default function DateTimeSelection({
                             onClick={() => setEndTime(slot)}
                             className={cn(
                               disabled ? 'opacity-50 cursor-not-allowed' : '',
-                              isSlotBooked(slot) ? 'bg-red-100 border-red-300' : ''
+                              isSlotBooked(slot) ? 'bg-red-100 border-red-300' : '',
+                              isSlotRestricted(slot) ? 'bg-orange-100 border-orange-300' : ''
                             )}
                           >
                             {slot}
