@@ -157,7 +157,7 @@ export async function getAllRooms() {
     }
 
     // id를 문자열로 변환하여 반환
-    return (data || []).map(room => ({
+    return (data || []).map((room: { id: number | string; name: string; location: string }) => ({
       ...room,
       id: String(room.id)
     }))

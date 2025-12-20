@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -47,7 +47,7 @@ export default function AdminDashboard() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingReservationId, setDeletingReservationId] = useState<string | null>(null)
 
-  const fetchReservations = useCallback(async () => {
+  const fetchReservations = async () => {
     setLoading(true)
     const supabase = createClient()
 
@@ -72,11 +72,11 @@ export default function AdminDashboard() {
       setReservations(data || [])
     }
     setLoading(false)
-  }, [filter])
+  }
 
   useEffect(() => {
     fetchReservations()
-  }, [fetchReservations])
+  }, [filter])
 
   async function updateReservationStatus(
     reservationId: string, 
