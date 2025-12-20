@@ -8,7 +8,7 @@ import { format } from 'date-fns'
 import LogoutButton from '@/components/auth/logout-button'
 import DeleteAccountButton from '@/components/auth/delete-account-button'
 import { formatStudentId } from '@/lib/utils'
-import { getSystemNotice } from '@/app/actions/system-notices'
+import { getActiveRoomRestrictions } from '@/app/actions/room-restrictions'
 
 async function getUpcomingReservations(userId: string) {
   const supabase = await createClient()
@@ -90,7 +90,7 @@ export default async function DashboardPage() {
 
   const upcomingReservations = await getUpcomingReservations(user.id)
   const rejectedReservations = await getRejectedReservations(user.id)
-  const systemNotice = await getSystemNotice()
+  const roomRestrictions = await getActiveRoomRestrictions()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -133,29 +133,43 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        {/* System Notice */}
-        {(systemNotice?.restricted_hours || systemNotice?.notes) && (
+        {/* Room Restrictions Notice */}
+        {roomRestrictions && roomRestrictions.length > 0 && (
           <div className="mb-6 sm:mb-8">
-            <Card className="border-l-4 border-l-blue-500">
+            <Card className="border-l-4 border-l-red-500">
               <CardHeader>
                 <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-blue-600" />
-                  공지사항
+                  <AlertCircle className="w-5 h-5 text-red-600" />
+                  특별실 사용금지 공지
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {systemNotice.restricted_hours && (
-                  <div className="p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                    <p className="text-xs sm:text-sm font-medium text-yellow-800 mb-1">⚠️ 사용금지시간</p>
-                    <p className="text-xs sm:text-sm text-yellow-700 whitespace-pre-wrap">{systemNotice.restricted_hours}</p>
+                {roomRestrictions.map((restriction: any) => (
+                  <div
+                    key={restriction.id}
+                    className="p-3 sm:p-4 bg-red-50 border border-red-200 rounded-md"
+                  >
+                    <div className="flex items-start gap-2 mb-2">
+                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h3 className="text-sm sm:text-base font-semibold text-red-900 mb-2">
+                          {restriction.rooms?.name || '알 수 없음'}
+                          {restriction.rooms?.location && ` (${restriction.rooms.location})`}
+                        </h3>
+                        <div className="space-y-2 text-xs sm:text-sm">
+                          <div>
+                            <span className="font-medium text-red-800">사용금지 시간대:</span>
+                            <span className="ml-2 text-red-700">{restriction.restricted_hours}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-red-800">금지 사유:</span>
+                            <p className="mt-1 text-red-700 whitespace-pre-wrap">{restriction.reason}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                )}
-                {systemNotice.notes && (
-                  <div className="p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-md">
-                    <p className="text-xs sm:text-sm font-medium text-blue-800 mb-1">ℹ️ 유의사항</p>
-                    <p className="text-xs sm:text-sm text-blue-700 whitespace-pre-wrap">{systemNotice.notes}</p>
-                  </div>
-                )}
+                ))}
               </CardContent>
             </Card>
           </div>

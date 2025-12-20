@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import AdminDashboard from '@/components/admin/admin-dashboard'
-import SystemNoticeManagement from '@/components/admin/system-notice-management'
+import RoomRestrictionManagement from '@/components/admin/room-restriction-management'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Building2, ArrowLeft } from 'lucide-react'
@@ -46,7 +46,7 @@ export default async function AdminPage() {
           </Link>
         </div>
         <div className="space-y-6">
-          <SystemNoticeManagement />
+          <RoomRestrictionManagement />
           <AdminDashboard />
         </div>
       </div>
