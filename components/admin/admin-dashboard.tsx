@@ -127,11 +127,11 @@ export default function AdminDashboard() {
     }
 
     // 한 번에 status, rejection_reason, approved_by 업데이트
-    const { data, error } = await supabase
+    const { data: updatedData, error } = await supabase
       .from('reservations')
       .update(updateData)
       .eq('id', reservationId)
-      .select('id, status, rejection_reason, approved_by')
+      .select('id, status, rejection_reason, approved_by, updated_at')
 
     if (error) {
       console.error('Error updating reservation:', error)
@@ -162,8 +162,37 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
       return
     }
 
-    // 예약 목록 새로고침
-    await fetchReservations()
+    // 업데이트 성공 확인
+    if (!updatedData || updatedData.length === 0) {
+      console.error('No data returned from update')
+      alert('예약 상태 업데이트에 실패했습니다.')
+      setUpdating(null)
+      return
+    }
+
+    // 로컬 상태 즉시 업데이트 (옵티미스틱 업데이트)
+    setReservations(prevReservations => 
+      prevReservations.map(reservation => 
+        reservation.id === reservationId
+          ? {
+              ...reservation,
+              status: updateData.status,
+              rejection_reason: updateData.rejection_reason || null,
+              approved_by: updateData.approved_by || null,
+              updated_at: updatedData[0].updated_at,
+            }
+          : reservation
+      )
+    )
+
+    // 예약 목록 새로고침 (최신 데이터 확인)
+    try {
+      await fetchReservations()
+    } catch (fetchError) {
+      console.error('Error refreshing reservations:', fetchError)
+      // 새로고침 실패해도 로컬 상태는 이미 업데이트되었으므로 계속 진행
+    }
+
     setRejectDialogOpen(false)
     setRejectionReason('')
     setRejectingReservationId(null)
@@ -197,8 +226,16 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
       if (result.error) {
         alert(`아카이브 중 오류가 발생했습니다: ${result.error}`)
       } else {
-        alert('아카이브가 완료되었습니다.')
-        await fetchReservations()
+        const data = result.data as { archived_count?: number; deleted_count?: number } | undefined
+        const archivedCount = data?.archived_count || 0
+        const deletedCount = data?.deleted_count || 0
+        alert(`아카이브가 완료되었습니다.\n보관된 예약: ${archivedCount}개\n삭제된 예약: ${deletedCount}개`)
+        
+        // 아카이브된 예약들을 로컬 상태에서 제거
+        if (deletedCount > 0) {
+          // 전체 목록 새로고침
+          await fetchReservations()
+        }
       }
     } catch (error) {
       console.error('Error archiving:', error)
@@ -220,8 +257,21 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
     if (error) {
       console.error('Error deleting reservation:', error)
       alert(`예약 삭제 중 오류가 발생했습니다.\n\n오류: ${error.message}`)
-    } else {
+      setUpdating(null)
+      return
+    }
+
+    // 로컬 상태 즉시 업데이트 (옵티미스틱 업데이트)
+    setReservations(prevReservations => 
+      prevReservations.filter(reservation => reservation.id !== reservationId)
+    )
+
+    // 예약 목록 새로고침 (최신 데이터 확인)
+    try {
       await fetchReservations()
+    } catch (fetchError) {
+      console.error('Error refreshing reservations:', fetchError)
+      // 새로고침 실패해도 로컬 상태는 이미 업데이트되었으므로 계속 진행
     }
     
     setDeleteDialogOpen(false)
