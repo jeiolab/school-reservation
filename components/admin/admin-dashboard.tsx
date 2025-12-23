@@ -55,6 +55,28 @@ export default function AdminDashboard() {
     setLoading(true)
     const supabase = createClient()
 
+    // 현재 사용자 확인
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      console.error('Auth error:', authError)
+      setReservations([])
+      setLoading(false)
+      return
+    }
+
+    // 사용자 프로필 확인
+    const { data: userProfile, error: profileError } = await supabase
+      .from('users')
+      .select('role, name, email')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError) {
+      console.error('Error fetching user profile:', profileError)
+    } else {
+      console.log('User profile:', userProfile)
+    }
+
     let query = supabase
       .from('reservations')
       .select(`
@@ -73,14 +95,33 @@ export default function AdminDashboard() {
 
     if (error) {
       console.error('Error fetching reservations:', error)
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      })
+      
+      // RLS 정책 관련 에러인 경우 안내
+      if (error.code === 'PGRST301' || error.message?.includes('permission denied') || error.message?.includes('policy')) {
+        alert(`권한 오류가 발생했습니다.\n\n관리자가 모든 사용자 정보를 볼 수 있도록 RLS 정책을 추가해야 합니다.\n\nSupabase SQL Editor에서 다음 명령을 실행하세요:\n\nCREATE POLICY "Admins can view all users"\n  ON users FOR SELECT\n  USING (\n    EXISTS (\n      SELECT 1 FROM users u\n      WHERE u.id = auth.uid()\n      AND u.role IN ('teacher', 'admin')\n    )\n  );`)
+      } else {
+        alert(`예약 목록을 불러오는 중 오류가 발생했습니다.\n\n오류: ${error.message}\n\n코드: ${error.code}`)
+      }
       setReservations([])
     } else {
+      console.log('Fetched reservations:', data?.length || 0, 'items')
       // Transform data to match our interface
       const transformedData = (data || []).map((item: any) => ({
         ...item,
         approved_by_user: item.approved_by_user || null,
       }))
       setReservations(transformedData)
+      
+      // 데이터가 없을 때도 로그 출력
+      if (!data || data.length === 0) {
+        console.log('No reservations found. Filter:', filter)
+      }
     }
     setLoading(false)
   }, [filter])
