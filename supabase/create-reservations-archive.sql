@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS reservations_archive (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   original_id UUID NOT NULL, -- 원본 예약 ID (참고용)
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  room_id BIGINT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+  room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
   start_time TIMESTAMP WITH TIME ZONE NOT NULL,
   end_time TIMESTAMP WITH TIME ZONE NOT NULL,
   purpose TEXT NOT NULL,
@@ -37,10 +37,13 @@ CREATE INDEX IF NOT EXISTS idx_reservations_archive_status ON reservations_archi
 ALTER TABLE reservations_archive ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for reservations_archive
+-- Drop existing policies if they exist, then recreate them
+DROP POLICY IF EXISTS "Users can view their own archived reservations" ON reservations_archive;
 CREATE POLICY "Users can view their own archived reservations"
   ON reservations_archive FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can view all archived reservations" ON reservations_archive;
 CREATE POLICY "Admins can view all archived reservations"
   ON reservations_archive FOR SELECT
   USING (
