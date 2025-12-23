@@ -1,7 +1,21 @@
 -- Fix archive_old_reservations function to handle missing updated_at column
 -- This function will work even if updated_at column doesn't exist in reservations_archive
 
--- First, ensure updated_at column exists in reservations_archive
+-- First, ensure updated_at column exists in reservations table
+ALTER TABLE reservations 
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW());
+
+-- Update existing rows in reservations to have updated_at value if they don't have one
+UPDATE reservations 
+SET updated_at = created_at 
+WHERE updated_at IS NULL;
+
+-- Make it NOT NULL with default (if it was nullable)
+ALTER TABLE reservations 
+ALTER COLUMN updated_at SET DEFAULT TIMEZONE('utc', NOW()),
+ALTER COLUMN updated_at SET NOT NULL;
+
+-- Ensure updated_at column exists in reservations_archive
 ALTER TABLE reservations_archive 
 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE;
 
