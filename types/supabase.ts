@@ -175,7 +175,13 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      archive_old_reservations: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          archived_count: number
+          deleted_count: number
+        }[]
+      }
     }
     Enums: {
       user_role: 'student' | 'teacher' | 'admin'

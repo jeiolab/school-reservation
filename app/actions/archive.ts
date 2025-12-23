@@ -22,7 +22,7 @@ export async function archiveOldReservations() {
   }
 
   // Call the archive function
-  const { data, error } = await supabase.rpc('archive_old_reservations')
+  const { data, error } = await supabase.rpc('archive_old_reservations', {})
 
   if (error) {
     console.error('Error archiving reservations:', error)

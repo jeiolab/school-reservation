@@ -54,7 +54,7 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
       setReservations(data || [])
     }
     setLoading(false)
-  }, [monthStart, monthEnd, filter])
+  }, [monthStart, monthEnd])
 
   useEffect(() => {
     fetchReservations()

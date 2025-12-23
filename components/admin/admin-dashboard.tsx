@@ -226,7 +226,7 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
     setDeleteDialogOpen(false)
     setDeletingReservationId(null)
     setUpdating(null)
-  }
+  }, [fetchReservations])
 
   const getStatusBadge = useCallback((status: string) => {
     switch (status) {
@@ -241,14 +241,6 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
     }
   }, [])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-      </div>
-    )
-  }
-
   const filteredReservations = useMemo(() => {
     if (filter === 'all') return reservations
     return reservations.filter((r) => r.status === filter)
@@ -258,6 +250,14 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
   const pendingCount = useMemo(() => {
     return reservations.filter(r => r.status === 'pending').length
   }, [reservations])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
