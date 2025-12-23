@@ -82,7 +82,7 @@ export default function AdminDashboard() {
       .select(`
         *,
         rooms (*),
-        users (*),
+        users!user_id (*),
         approved_by_user:users!approved_by (*)
       `)
       .order('created_at', { ascending: false })

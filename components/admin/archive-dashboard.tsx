@@ -42,7 +42,7 @@ export default function ArchiveDashboard() {
       .select(`
         *,
         rooms (*),
-        users (*),
+        users!user_id (*),
         approved_by_user:users!approved_by (*)
       `)
       .order('archived_at', { ascending: false })

@@ -41,7 +41,7 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
       .select(`
         *,
         rooms (*),
-        users (*)
+        users!user_id (*)
       `)
       .eq('status', 'confirmed')
       .gte('start_time', monthStart.toISOString())
