@@ -27,10 +27,21 @@ BEGIN
     ADD COLUMN room_id_new UUID;
     
     -- Step 2: Populate new column from reservations table using original_id
+    -- Get UUID from rooms table by matching room_id (handles both UUID and BIGINT)
+    -- Convert both sides to text for comparison to avoid type mismatch
+    -- Cast rooms.id to UUID explicitly since it might be BIGINT
     UPDATE reservations_archive ra
-    SET room_id_new = r.room_id
-    FROM reservations r
-    WHERE ra.original_id = r.id;
+    SET room_id_new = (
+      SELECT rm.id::text::uuid
+      FROM reservations r
+      JOIN rooms rm ON r.room_id::text = rm.id::text
+      WHERE CAST(ra.original_id AS TEXT) = CAST(r.id AS TEXT)
+      LIMIT 1
+    )
+    WHERE EXISTS (
+      SELECT 1 FROM reservations r
+      WHERE CAST(ra.original_id AS TEXT) = CAST(r.id AS TEXT)
+    );
     
     -- Step 3: Drop old column
     ALTER TABLE reservations_archive 
