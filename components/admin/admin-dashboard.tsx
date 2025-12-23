@@ -274,11 +274,15 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
         if (archivedCount === 0 && deletedCount === 0) {
           alert('아카이브할 오래된 예약이 없습니다.\n(승인 후 2주일이 지난 예약만 아카이브됩니다)')
         } else {
-          alert(`아카이브가 완료되었습니다.\n보관된 예약: ${archivedCount}개\n삭제된 예약: ${deletedCount}개`)
+          let message = `아카이브가 완료되었습니다.\n보관된 예약: ${archivedCount}개\n삭제된 예약: ${deletedCount}개`
+          if (result.warning) {
+            message += `\n\n경고: ${result.warning}`
+          }
+          alert(message)
         }
         
         // 아카이브된 예약들을 로컬 상태에서 제거
-        if (deletedCount > 0) {
+        if (deletedCount > 0 || archivedCount > 0) {
           // 전체 목록 새로고침
           await fetchReservations()
         }

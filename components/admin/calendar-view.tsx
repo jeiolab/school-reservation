@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Loader2 } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns'
 import { Reservation, Room, User as UserType } from '@/types/supabase'
 import { toKoreaTime } from '@/lib/utils'
@@ -30,14 +30,18 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
-  const monthStart = startOfMonth(currentDate)
-  const monthEnd = endOfMonth(currentDate)
-  const calendarStart = startOfWeek(monthStart)
-  const calendarEnd = endOfWeek(monthEnd)
-  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
+  // useMemo로 메모이제이션하여 불필요한 재계산 방지
+  const monthStart = useMemo(() => startOfMonth(currentDate), [currentDate])
+  const monthEnd = useMemo(() => endOfMonth(currentDate), [currentDate])
+  const calendarStart = useMemo(() => startOfWeek(monthStart), [monthStart])
+  const calendarEnd = useMemo(() => endOfWeek(monthEnd), [monthEnd])
+  const days = useMemo(() => eachDayOfInterval({ start: calendarStart, end: calendarEnd }), [calendarStart, calendarEnd])
 
-  const fetchReservations = useCallback(async () => {
-    setLoading(true)
+  const fetchReservations = useCallback(async (showLoading = false) => {
+    if (showLoading) {
+      setLoading(true)
+    }
+    
     const supabase = createClient()
 
     // 한국 시간 기준으로 월의 시작과 끝 계산
@@ -72,9 +76,12 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
     setLoading(false)
   }, [monthStart, monthEnd])
 
+  // 초기 로딩 및 월 변경 시 데이터 가져오기
   useEffect(() => {
-    fetchReservations()
-  }, [fetchReservations])
+    const isInitialLoad = loading && reservations.length === 0
+    fetchReservations(isInitialLoad)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthStart, monthEnd])
 
   const getReservationsForDate = (date: Date) => {
     return reservations.filter((reservation) => {
@@ -133,7 +140,12 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
       </div>
 
       {/* Calendar Grid */}
-      <Card>
+      <Card className="relative">
+        {loading && (
+          <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+          </div>
+        )}
         <CardContent className="p-4">
           {/* Day Headers */}
           <div className="grid grid-cols-7 gap-1 mb-2">
