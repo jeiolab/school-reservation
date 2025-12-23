@@ -200,7 +200,7 @@ export default function SignupForm() {
               <Input
                 id="email"
                 type="email"
-                placeholder="student@school.edu"
+                placeholder="neungju@h.jne.go.kr"
                 value={formData.email}
                 onChange={handleEmailChange}
                 required

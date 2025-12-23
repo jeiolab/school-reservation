@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { Reservation } from '@/types/supabase'
 
 export async function archiveOldReservations() {
   const supabase = await createClient()
@@ -51,7 +52,7 @@ export async function archiveOldReservations() {
     }
 
     // updated_at 또는 created_at을 기준으로 2주일이 지난 예약 필터링
-    const reservationsToArchive = allConfirmedReservations.filter(reservation => {
+    const reservationsToArchive = (allConfirmedReservations || []).filter((reservation: Reservation) => {
       const updateDate = reservation.updated_at || reservation.created_at
       if (!updateDate) return false
       const updateDateObj = new Date(updateDate)

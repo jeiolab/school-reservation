@@ -162,7 +162,7 @@ export default function TeacherSignupForm() {
             <Input
               id="email"
               type="email"
-              placeholder="teacher@school.edu"
+              placeholder="neungju@h.jne.go.kr"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
