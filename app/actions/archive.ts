@@ -52,7 +52,7 @@ export async function archiveOldReservations() {
     }
 
     // updated_at 또는 created_at을 기준으로 2주일이 지난 예약 필터링
-    const reservationsToArchive = (allConfirmedReservations || []).filter((reservation: Reservation) => {
+    const reservationsToArchive: Reservation[] = (allConfirmedReservations || []).filter((reservation: Reservation) => {
       const updateDate = reservation.updated_at || reservation.created_at
       if (!updateDate) return false
       const updateDateObj = new Date(updateDate)
@@ -67,14 +67,14 @@ export async function archiveOldReservations() {
     }
 
     // 2단계: 이미 아카이브된 예약 제외
-    const reservationIds = reservationsToArchive.map(r => r.id)
+    const reservationIds = reservationsToArchive.map((r: Reservation) => r.id)
     const { data: existingArchives } = await supabase
       .from('reservations_archive')
       .select('original_id')
       .in('original_id', reservationIds)
 
-    const existingArchiveIds = new Set(existingArchives?.map(a => a.original_id) || [])
-    const toArchive = reservationsToArchive.filter(r => !existingArchiveIds.has(r.id))
+    const existingArchiveIds = new Set(existingArchives?.map((a: { original_id: string }) => a.original_id) || [])
+    const toArchive = reservationsToArchive.filter((r: Reservation) => !existingArchiveIds.has(r.id))
 
     if (toArchive.length === 0) {
       return { 
@@ -84,7 +84,7 @@ export async function archiveOldReservations() {
     }
 
     // 3단계: 아카이브 테이블에 삽입
-    const archiveData = toArchive.map(reservation => ({
+    const archiveData = toArchive.map((reservation: Reservation) => ({
       original_id: reservation.id,
       user_id: reservation.user_id,
       room_id: reservation.room_id,
@@ -110,7 +110,7 @@ export async function archiveOldReservations() {
     }
 
     // 4단계: 원본 테이블에서 삭제
-    const archivedIds = toArchive.map(r => r.id)
+    const archivedIds = toArchive.map((r: Reservation) => r.id)
     const { error: deleteError } = await supabase
       .from('reservations')
       .delete()
