@@ -13,7 +13,7 @@ const signupSchema = z.object({
   email: z.string().email('올바른 이메일 주소를 입력해주세요'),
   password: z.string().min(6, '비밀번호는 최소 6자 이상이어야 합니다'),
   name: z.string().min(2, '이름을 입력해주세요'),
-  studentId: z.string().min(1, '학번을 입력해주세요'),
+  studentId: z.string().length(4, '학번은 4자리여야 합니다').regex(/^\d{4}$/, '학번은 숫자 4자리여야 합니다'),
 })
 
 export default function SignupForm() {
@@ -225,13 +225,18 @@ export default function SignupForm() {
             <Input
               id="studentId"
               type="text"
-              placeholder="240001"
+              placeholder="0101"
               value={formData.studentId}
-              onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+              onChange={(e) => {
+                // 숫자만 입력 허용하고 최대 4자리로 제한
+                const value = e.target.value.replace(/\D/g, '').slice(0, 4)
+                setFormData({ ...formData, studentId: value })
+              }}
+              maxLength={4}
               required
               disabled={loading}
             />
-            <p className="text-xs text-gray-500">6자리 학번을 입력해주세요 (예: 240001)</p>
+            <p className="text-xs text-gray-500">4자리 학년반번호를 입력해주세요 (예: 0101)</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">비밀번호 *</Label>
