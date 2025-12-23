@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Clock, AlertCircle } from 'lucide-react'
-import { format, addDays, isAfter, setHours, setMinutes, startOfDay } from 'date-fns'
+import { format, addDays, isAfter, setHours, setMinutes, startOfDay, isBefore, isSameDay } from 'date-fns'
 import { Reservation } from '@/types/supabase'
 import { cn } from '@/lib/utils'
 
@@ -45,8 +45,17 @@ export default function DateTimeSelection({
   selectedStartTime,
   selectedEndTime,
 }: DateTimeSelectionProps) {
+  // 한국 시간 기준 현재 시간 가져오기 (UTC + 9시간)
+  const getKoreaTime = () => {
+    const now = new Date()
+    const koreaOffset = 9 * 60 // 한국은 UTC+9 (분 단위)
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60 * 1000)
+    return new Date(utc + (koreaOffset * 60 * 1000))
+  }
+
+  const koreaNow = getKoreaTime()
   const [selectedDate, setSelectedDate] = useState<string>(
-    format(new Date(), 'yyyy-MM-dd')
+    format(koreaNow, 'yyyy-MM-dd')
   )
   const [startTime, setStartTime] = useState<string>(
     selectedStartTime ? format(new Date(selectedStartTime), 'HH:mm') : ''
@@ -222,9 +231,34 @@ export default function DateTimeSelection({
     return restrictedSlots.has(slot)
   }
 
+  // 선택한 날짜가 오늘인지 확인 (한국 시간 기준)
+  const isToday = (dateString: string) => {
+    const currentKoreaTime = getKoreaTime()
+    const selectedDateObj = new Date(dateString + 'T00:00:00+09:00') // 한국 시간대로 파싱
+    return isSameDay(currentKoreaTime, selectedDateObj)
+  }
+
+  // 시간 슬롯이 지난 시간인지 확인 (한국 시간 기준)
+  const isPastTime = (slot: string, dateString: string) => {
+    if (!isToday(dateString)) return false
+    
+    const currentKoreaTime = getKoreaTime()
+    const [slotHour, slotMinute] = slot.split(':').map(Number)
+    
+    // 선택한 날짜와 시간을 한국 시간대로 생성
+    const slotDateTime = new Date(`${dateString}T${String(slotHour).padStart(2, '0')}:${String(slotMinute).padStart(2, '0')}:00+09:00`)
+    
+    return slotDateTime < currentKoreaTime
+  }
+
   const isSlotDisabled = (slot: string, isStartTime: boolean = true) => {
     if (isSlotBooked(slot)) return true
     if (isSlotRestricted(slot)) return true
+    
+    // 한국 시간 기준으로 지난 시간 체크
+    if (selectedDate && isPastTime(slot, selectedDate)) {
+      return true
+    }
     
     const [slotHour, slotMinute] = slot.split(':').map(Number)
     
@@ -255,6 +289,12 @@ export default function DateTimeSelection({
   const handleConfirm = () => {
     if (!startTime || !endTime || !selectedDate) return
 
+    // 한국 시간 기준으로 지난 시간 체크
+    if (isPastTime(startTime, selectedDate)) {
+      alert('지난 시간은 선택할 수 없습니다.')
+      return
+    }
+
     const startDateTime = new Date(`${selectedDate}T${startTime}:00`)
     const endDateTime = new Date(`${selectedDate}T${endTime}:00`)
 
@@ -266,8 +306,9 @@ export default function DateTimeSelection({
     onSelect(startDateTime.toISOString(), endDateTime.toISOString())
   }
 
-  const minDate = format(new Date(), 'yyyy-MM-dd')
-  const maxDate = format(addDays(new Date(), 30), 'yyyy-MM-dd')
+  // 한국 시간 기준으로 최소 날짜 설정
+  const minDate = format(koreaNow, 'yyyy-MM-dd')
+  const maxDate = format(addDays(koreaNow, 30), 'yyyy-MM-dd')
 
   return (
     <div className="space-y-6">
@@ -377,11 +418,13 @@ export default function DateTimeSelection({
                         const slotDateTime = setMinutes(setHours(new Date(), slotHour), slotMinute)
 
                         // 종료 시간은 시작 시간보다 늦어야 함
+                        // 한국 시간 기준으로 지난 시간 체크
                         const disabled: boolean =
                           slotDateTime <= startDateTime ||
                           isSlotBooked(slot) ||
                           (startTime ? slot <= startTime : false) ||
-                          isSlotDisabled(slot, false)
+                          isSlotDisabled(slot, false) ||
+                          (selectedDate ? isPastTime(slot, selectedDate) : false)
 
                         const selected = endTime === slot
 
