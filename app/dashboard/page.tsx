@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import LogoutButton from '@/components/auth/logout-button'
 import DeleteAccountButton from '@/components/auth/delete-account-button'
 import { formatStudentId, toKoreaTime } from '@/lib/utils'
+import StudentIdDisplay from '@/components/user/student-id-display'
 
 // 한국 시간 기준 현재 날짜 가져오기
 function getKoreaDate() {
@@ -113,11 +114,23 @@ export default async function DashboardPage() {
                   </Button>
                 </Link>
               )}
-              <span className="text-xs sm:text-sm text-gray-600 truncate max-w-[100px] sm:max-w-none">
-                {userProfile?.name || user.email}
-                {userProfile?.student_id && ` (${formatStudentId(userProfile.student_id)})`}
-                님
-              </span>
+              <div className="flex items-center gap-1 sm:gap-2 truncate max-w-[100px] sm:max-w-none">
+                <span className="text-xs sm:text-sm text-gray-600">
+                  {userProfile?.name || user.email}
+                </span>
+                {userProfile?.role === 'student' && (
+                  <StudentIdDisplay 
+                    studentId={userProfile?.student_id || null} 
+                    role={userProfile?.role || null}
+                  />
+                )}
+                {userProfile?.role !== 'student' && userProfile?.student_id && (
+                  <span className="text-xs sm:text-sm text-gray-600">
+                    ({formatStudentId(userProfile.student_id)})
+                  </span>
+                )}
+                <span className="text-xs sm:text-sm text-gray-600">님</span>
+              </div>
               <LogoutButton />
               <DeleteAccountButton />
             </div>

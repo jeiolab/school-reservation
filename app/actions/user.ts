@@ -69,3 +69,52 @@ export async function deleteUser() {
   }
 }
 
+export async function updateStudentId(studentId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: '로그인이 필요합니다.' }
+  }
+
+  // 학번 검증 (4자리 숫자)
+  if (!/^\d{4}$/.test(studentId)) {
+    return { error: '학번은 4자리 숫자여야 합니다.' }
+  }
+
+  try {
+    // 사용자 정보 확인 (학생만 수정 가능)
+    const { data: userProfile, error: profileError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError) {
+      console.error('Error fetching user profile:', profileError)
+      return { error: '사용자 정보를 불러올 수 없습니다.' }
+    }
+
+    if (userProfile?.role !== 'student') {
+      return { error: '학생만 학번을 수정할 수 있습니다.' }
+    }
+
+    // 학번 업데이트
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ student_id: studentId })
+      .eq('id', user.id)
+
+    if (updateError) {
+      console.error('Error updating student_id:', updateError)
+      return { error: '학번 수정 중 오류가 발생했습니다.' }
+    }
+
+    revalidatePath('/dashboard')
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating student_id:', error)
+    return { error: '학번 수정 중 오류가 발생했습니다.' }
+  }
+}
+
