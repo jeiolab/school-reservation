@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -32,7 +32,7 @@ export default function ArchiveDashboard() {
   const [reservations, setReservations] = useState<ArchivedReservation[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchArchivedReservations = async () => {
+  const fetchArchivedReservations = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
 
@@ -48,6 +48,7 @@ export default function ArchiveDashboard() {
 
     if (error) {
       console.error('Error fetching archived reservations:', error)
+      setReservations([])
     } else {
       const transformedData = (data || []).map((item: any) => ({
         ...item,
@@ -56,13 +57,13 @@ export default function ArchiveDashboard() {
       setReservations(transformedData)
     }
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     fetchArchivedReservations()
-  }, [])
+  }, [fetchArchivedReservations])
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = useCallback((status: string) => {
     switch (status) {
       case 'confirmed':
         return <Badge className="bg-green-100 text-green-800">승인됨</Badge>

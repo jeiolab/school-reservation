@@ -29,6 +29,8 @@ CREATE INDEX IF NOT EXISTS idx_reservations_archive_user_id ON reservations_arch
 CREATE INDEX IF NOT EXISTS idx_reservations_archive_room_id ON reservations_archive(room_id);
 CREATE INDEX IF NOT EXISTS idx_reservations_archive_start_time ON reservations_archive(start_time);
 CREATE INDEX IF NOT EXISTS idx_reservations_archive_archived_at ON reservations_archive(archived_at);
+CREATE INDEX IF NOT EXISTS idx_reservations_archive_original_id ON reservations_archive(original_id);
+CREATE INDEX IF NOT EXISTS idx_reservations_archive_status ON reservations_archive(status);
 
 -- Enable RLS
 ALTER TABLE reservations_archive ENABLE ROW LEVEL SECURITY;
@@ -49,32 +51,40 @@ CREATE POLICY "Admins can view all archived reservations"
   );
 
 -- Function to archive old confirmed reservations (2 weeks after approval)
+-- Optimized version with better performance
 CREATE OR REPLACE FUNCTION archive_old_reservations()
 RETURNS TABLE(archived_count INTEGER, deleted_count INTEGER) AS $$
 DECLARE
   archived_count INTEGER := 0;
   deleted_count INTEGER := 0;
+  cutoff_date TIMESTAMP WITH TIME ZONE;
 BEGIN
+  cutoff_date := NOW() - INTERVAL '14 days';
+  
   -- Move confirmed reservations that were approved more than 2 weeks ago
+  -- Using NOT EXISTS instead of NOT IN for better performance
   WITH to_archive AS (
     SELECT 
-      id,
-      user_id,
-      room_id,
-      start_time,
-      end_time,
-      purpose,
-      status,
-      attendees,
-      approved_by,
-      rejection_reason,
-      created_at,
-      updated_at
-    FROM reservations
-    WHERE status = 'confirmed'
-      AND approved_by IS NOT NULL
-      AND updated_at < NOW() - INTERVAL '14 days'
-      AND id NOT IN (SELECT original_id FROM reservations_archive WHERE original_id IS NOT NULL)
+      r.id,
+      r.user_id,
+      r.room_id,
+      r.start_time,
+      r.end_time,
+      r.purpose,
+      r.status,
+      r.attendees,
+      r.approved_by,
+      r.rejection_reason,
+      r.created_at,
+      r.updated_at
+    FROM reservations r
+    WHERE r.status = 'confirmed'
+      AND r.approved_by IS NOT NULL
+      AND r.updated_at < cutoff_date
+      AND NOT EXISTS (
+        SELECT 1 FROM reservations_archive ra 
+        WHERE ra.original_id = r.id
+      )
   )
   INSERT INTO reservations_archive (
     original_id,
@@ -109,12 +119,15 @@ BEGIN
 
   GET DIAGNOSTICS archived_count = ROW_COUNT;
 
-  -- Delete archived reservations from main table
+  -- Delete archived reservations from main table using the same cutoff date
   DELETE FROM reservations
   WHERE status = 'confirmed'
     AND approved_by IS NOT NULL
-    AND updated_at < NOW() - INTERVAL '14 days'
-    AND id IN (SELECT original_id FROM reservations_archive WHERE original_id IS NOT NULL);
+    AND updated_at < cutoff_date
+    AND EXISTS (
+      SELECT 1 FROM reservations_archive ra 
+      WHERE ra.original_id = reservations.id
+    );
 
   GET DIAGNOSTICS deleted_count = ROW_COUNT;
 

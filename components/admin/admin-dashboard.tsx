@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -50,7 +50,7 @@ export default function AdminDashboard() {
   const [deletingReservationId, setDeletingReservationId] = useState<string | null>(null)
   const [archiving, setArchiving] = useState(false)
 
-  const fetchReservations = async () => {
+  const fetchReservations = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
 
@@ -72,6 +72,7 @@ export default function AdminDashboard() {
 
     if (error) {
       console.error('Error fetching reservations:', error)
+      setReservations([])
     } else {
       // Transform data to match our interface
       const transformedData = (data || []).map((item: any) => ({
@@ -81,17 +82,17 @@ export default function AdminDashboard() {
       setReservations(transformedData)
     }
     setLoading(false)
-  }
+  }, [filter])
 
   useEffect(() => {
     fetchReservations()
-  }, [filter])
+  }, [fetchReservations])
 
-  async function updateReservationStatus(
+  const updateReservationStatus = useCallback(async (
     reservationId: string, 
     status: 'confirmed' | 'rejected',
     reason?: string
-  ) {
+  ) => {
     setUpdating(reservationId)
     const supabase = createClient()
 
@@ -166,25 +167,25 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
     setRejectionReason('')
     setRejectingReservationId(null)
     setUpdating(null)
-  }
+  }, [fetchReservations])
 
-  const handleRejectClick = (reservationId: string) => {
+  const handleRejectClick = useCallback((reservationId: string) => {
     setRejectingReservationId(reservationId)
     setRejectDialogOpen(true)
-  }
+  }, [])
 
-  const handleRejectConfirm = () => {
+  const handleRejectConfirm = useCallback(() => {
     if (rejectingReservationId) {
       updateReservationStatus(rejectingReservationId, 'rejected', rejectionReason)
     }
-  }
+  }, [rejectingReservationId, rejectionReason, updateReservationStatus])
 
-  const handleDeleteClick = (reservationId: string) => {
+  const handleDeleteClick = useCallback((reservationId: string) => {
     setDeletingReservationId(reservationId)
     setDeleteDialogOpen(true)
-  }
+  }, [])
 
-  const handleArchiveClick = async () => {
+  const handleArchiveClick = useCallback(async () => {
     if (!confirm('승인 후 2주일이 지난 예약을 보관함으로 이동하시겠습니까?')) {
       return
     }
@@ -204,9 +205,9 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
     } finally {
       setArchiving(false)
     }
-  }
+  }, [fetchReservations])
 
-  async function deleteReservation(reservationId: string) {
+  const deleteReservation = useCallback(async (reservationId: string) => {
     setUpdating(reservationId)
     const supabase = createClient()
 
@@ -227,7 +228,7 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
     setUpdating(null)
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = useCallback((status: string) => {
     switch (status) {
       case 'confirmed':
         return <Badge className="bg-green-100 text-green-800">승인됨</Badge>
@@ -248,13 +249,15 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
     )
   }
 
-  const filteredReservations = reservations.filter((r) => {
-    if (filter === 'all') return true
-    return r.status === filter
-  })
+  const filteredReservations = useMemo(() => {
+    if (filter === 'all') return reservations
+    return reservations.filter((r) => r.status === filter)
+  }, [reservations, filter])
 
   // 대기중 예약 수 계산
-  const pendingCount = reservations.filter(r => r.status === 'pending').length
+  const pendingCount = useMemo(() => {
+    return reservations.filter(r => r.status === 'pending').length
+  }, [reservations])
 
   return (
     <div className="space-y-4 sm:space-y-6">
