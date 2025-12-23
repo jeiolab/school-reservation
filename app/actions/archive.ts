@@ -29,6 +29,17 @@ export async function archiveOldReservations() {
     return { error: error.message }
   }
 
-  return { success: true, data }
+  // Handle case where data might be null or empty
+  const result = data && Array.isArray(data) && data.length > 0 
+    ? data[0] 
+    : { archived_count: 0, deleted_count: 0 }
+
+  return { 
+    success: true, 
+    data: {
+      archived_count: result.archived_count || 0,
+      deleted_count: result.deleted_count || 0
+    }
+  }
 }
 

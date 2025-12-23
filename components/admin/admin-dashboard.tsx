@@ -270,7 +270,12 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
         const data = result.data as { archived_count?: number; deleted_count?: number } | undefined
         const archivedCount = data?.archived_count || 0
         const deletedCount = data?.deleted_count || 0
-        alert(`아카이브가 완료되었습니다.\n보관된 예약: ${archivedCount}개\n삭제된 예약: ${deletedCount}개`)
+        
+        if (archivedCount === 0 && deletedCount === 0) {
+          alert('아카이브할 오래된 예약이 없습니다.\n(승인 후 2주일이 지난 예약만 아카이브됩니다)')
+        } else {
+          alert(`아카이브가 완료되었습니다.\n보관된 예약: ${archivedCount}개\n삭제된 예약: ${deletedCount}개`)
+        }
         
         // 아카이브된 예약들을 로컬 상태에서 제거
         if (deletedCount > 0) {
