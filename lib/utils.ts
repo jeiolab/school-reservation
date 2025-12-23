@@ -28,8 +28,24 @@ export function formatStudentId(studentId: string | null | undefined): string {
  * @returns 한국 시간대의 Date 객체
  */
 export function toKoreaTime(dateString: string | Date): Date {
-  const date = typeof dateString === 'string' ? new Date(dateString) : dateString
-  // UTC 시간에 9시간을 더함
+  let date: Date
+  
+  if (typeof dateString === 'string') {
+    // ISO 문자열인 경우 UTC로 파싱
+    // ISO 문자열이 'Z'로 끝나면 UTC, 그렇지 않으면 로컬 시간대로 파싱됨
+    if (dateString.endsWith('Z') || dateString.includes('+') || dateString.includes('-', 10)) {
+      // UTC 시간으로 파싱
+      date = new Date(dateString)
+    } else {
+      // 시간대 정보가 없으면 UTC로 가정
+      date = new Date(dateString + 'Z')
+    }
+  } else {
+    date = dateString
+  }
+  
+  // UTC 시간을 기준으로 한국 시간(UTC+9) 계산
+  // getTime()은 항상 UTC 기준 밀리초를 반환하므로, 여기에 9시간을 더함
   const koreaTime = new Date(date.getTime() + (9 * 60 * 60 * 1000))
   return koreaTime
 }

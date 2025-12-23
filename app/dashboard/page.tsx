@@ -8,6 +8,11 @@ import { format } from 'date-fns'
 import LogoutButton from '@/components/auth/logout-button'
 import DeleteAccountButton from '@/components/auth/delete-account-button'
 import { formatStudentId, toKoreaTime } from '@/lib/utils'
+
+// 한국 시간 기준 현재 날짜 가져오기
+function getKoreaDate() {
+  return toKoreaTime(new Date())
+}
 import { getActiveRoomRestrictions } from '@/app/actions/room-restrictions'
 
 async function getUpcomingReservations(userId: string) {
@@ -64,8 +69,8 @@ async function getRejectedReservations(userId: string) {
 }
 
 function calculateDaysUntil(date: string | Date) {
-  const target = typeof date === 'string' ? new Date(date) : date
-  const today = new Date()
+  const target = typeof date === 'string' ? toKoreaTime(date) : toKoreaTime(date)
+  const today = getKoreaDate()
   today.setHours(0, 0, 0, 0)
   target.setHours(0, 0, 0, 0)
   const diffTime = target.getTime() - today.getTime()

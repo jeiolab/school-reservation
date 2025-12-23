@@ -74,7 +74,9 @@ export default function DateTimeSelection({
       setLoading(true)
       const supabase = createClient()
 
-      const startOfSelectedDay = startOfDay(new Date(selectedDate))
+      // 한국 시간 기준으로 날짜 계산
+      const selectedDateObj = new Date(selectedDate + 'T00:00:00+09:00')
+      const startOfSelectedDay = startOfDay(selectedDateObj)
       const endOfSelectedDay = addDays(startOfSelectedDay, 1)
 
       // Fetch booked reservations
@@ -91,8 +93,8 @@ export default function DateTimeSelection({
       } else {
         const booked = new Set<string>()
         data?.forEach((reservation: Reservation) => {
-          const start = new Date(reservation.start_time)
-          const end = new Date(reservation.end_time)
+          const start = toKoreaTime(reservation.start_time)
+          const end = toKoreaTime(reservation.end_time)
           let current = new Date(start)
 
           while (current < end) {
@@ -114,8 +116,9 @@ export default function DateTimeSelection({
         console.error('Error fetching restrictions:', restrictionsError)
       } else {
         const restricted = new Set<string>()
-        const selectedDateObj = new Date(selectedDate)
-        const dayOfWeek = selectedDateObj.getDay() // 0=Sunday, 6=Saturday
+        // 한국 시간 기준으로 선택된 날짜 파싱
+        const selectedDateObjKorea = new Date(selectedDate + 'T00:00:00+09:00')
+        const dayOfWeek = selectedDateObjKorea.getDay() // 0=Sunday, 6=Saturday
         const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
 
@@ -169,6 +172,7 @@ export default function DateTimeSelection({
             const restrictionYear = parseInt(dateMatch[1])
             const restrictionMonth = parseInt(dateMatch[2]) - 1 // Month is 0-indexed
             const restrictionDay = parseInt(dateMatch[3])
+            // 한국 시간 기준으로 제한 날짜 생성
             const restrictionDate = new Date(restrictionYear, restrictionMonth, restrictionDay)
             
             // Check if it's a date range
@@ -179,7 +183,8 @@ export default function DateTimeSelection({
               const endDay = parseInt(rangeMatch[6])
               const endDate = new Date(endYear, endMonth, endDay)
               
-              if (selectedDateObj >= restrictionDate && selectedDateObj <= endDate) {
+              // 한국 시간 기준으로 날짜 비교
+              if (selectedDateObjKorea >= restrictionDate && selectedDateObjKorea <= endDate) {
                 const timeMatch = restrictionText.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/)
                 if (timeMatch) {
                   const startTime = timeMatch[1]
@@ -195,8 +200,8 @@ export default function DateTimeSelection({
                 }
               }
             } else {
-              // Single date
-              if (format(selectedDateObj, 'yyyy-MM-dd') === format(restrictionDate, 'yyyy-MM-dd')) {
+              // Single date - 한국 시간 기준으로 날짜 비교
+              if (format(selectedDateObjKorea, 'yyyy-MM-dd') === format(restrictionDate, 'yyyy-MM-dd')) {
                 const timeMatch = restrictionText.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/)
                 if (timeMatch) {
                   const startTime = timeMatch[1]
