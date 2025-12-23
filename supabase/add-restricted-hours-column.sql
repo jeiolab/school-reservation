@@ -2,3 +2,4 @@
 ALTER TABLE rooms 
 ADD COLUMN IF NOT EXISTS restricted_hours TEXT;
 
+

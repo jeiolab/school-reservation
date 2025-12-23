@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import AdminDashboard from '@/components/admin/admin-dashboard'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Building2, ArrowLeft, AlertCircle } from 'lucide-react'
+import { Building2, ArrowLeft, AlertCircle, Archive } from 'lucide-react'
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -37,7 +37,7 @@ export default async function AdminPage() {
             </Link>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">관리자 대시보드</h1>
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex gap-2 w-full sm:w-auto flex-wrap">
             <Link href="/admin/rooms" className="flex-1 sm:flex-none">
               <Button className="w-full sm:w-auto">
                 <Building2 className="w-4 h-4 mr-2" />
@@ -48,6 +48,12 @@ export default async function AdminPage() {
               <Button variant="outline" className="w-full sm:w-auto">
                 <AlertCircle className="w-4 h-4 mr-2" />
                 사용금지 공지
+              </Button>
+            </Link>
+            <Link href="/admin/archive" className="flex-1 sm:flex-none">
+              <Button variant="outline" className="w-full sm:w-auto">
+                <Archive className="w-4 h-4 mr-2" />
+                보관함
               </Button>
             </Link>
           </div>

@@ -87,6 +87,7 @@ export interface Database {
           status: 'pending' | 'confirmed' | 'rejected'
           attendees: string[]
           rejection_reason: string | null
+          approved_by: string | null
           created_at: string
           updated_at: string
         }
@@ -100,6 +101,7 @@ export interface Database {
           status?: 'pending' | 'confirmed' | 'rejected'
           attendees?: string[]
           rejection_reason?: string | null
+          approved_by?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -113,8 +115,59 @@ export interface Database {
           status?: 'pending' | 'confirmed' | 'rejected'
           attendees?: string[]
           rejection_reason?: string | null
+          approved_by?: string | null
           created_at?: string
           updated_at?: string
+        }
+      }
+      reservations_archive: {
+        Row: {
+          id: string
+          original_id: string
+          user_id: string
+          room_id: string
+          start_time: string
+          end_time: string
+          purpose: string
+          status: 'pending' | 'confirmed' | 'rejected'
+          attendees: string[]
+          approved_by: string | null
+          rejection_reason: string | null
+          created_at: string
+          updated_at: string
+          archived_at: string
+        }
+        Insert: {
+          id?: string
+          original_id: string
+          user_id: string
+          room_id: string
+          start_time: string
+          end_time: string
+          purpose: string
+          status?: 'pending' | 'confirmed' | 'rejected'
+          attendees?: string[]
+          approved_by?: string | null
+          rejection_reason?: string | null
+          created_at: string
+          updated_at: string
+          archived_at?: string
+        }
+        Update: {
+          id?: string
+          original_id?: string
+          user_id?: string
+          room_id?: string
+          start_time?: string
+          end_time?: string
+          purpose?: string
+          status?: 'pending' | 'confirmed' | 'rejected'
+          attendees?: string[]
+          approved_by?: string | null
+          rejection_reason?: string | null
+          created_at?: string
+          updated_at?: string
+          archived_at?: string
         }
       }
     }

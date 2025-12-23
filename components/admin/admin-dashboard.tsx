@@ -25,14 +25,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Calendar, Clock, MapPin, Users, Check, X, Loader2, AlertCircle, Trash2 } from 'lucide-react'
+import { Calendar, Clock, MapPin, Users, Check, X, Loader2, AlertCircle, Trash2, Archive } from 'lucide-react'
 import { format } from 'date-fns'
 import { Reservation, Room, User as UserType } from '@/types/supabase'
 import CalendarView from './calendar-view'
+import { archiveOldReservations } from '@/app/actions/archive'
 
 interface ReservationWithDetails extends Reservation {
   rooms: Room | null
   users: UserType | null
+  approved_by_user?: UserType | null
 }
 
 export default function AdminDashboard() {
@@ -46,6 +48,7 @@ export default function AdminDashboard() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingReservationId, setDeletingReservationId] = useState<string | null>(null)
+  const [archiving, setArchiving] = useState(false)
 
   const fetchReservations = async () => {
     setLoading(true)
@@ -56,7 +59,8 @@ export default function AdminDashboard() {
       .select(`
         *,
         rooms (*),
-        users (*)
+        users (*),
+        approved_by_user:users!approved_by (*)
       `)
       .order('created_at', { ascending: false })
 
@@ -69,7 +73,12 @@ export default function AdminDashboard() {
     if (error) {
       console.error('Error fetching reservations:', error)
     } else {
-      setReservations(data || [])
+      // Transform data to match our interface
+      const transformedData = (data || []).map((item: any) => ({
+        ...item,
+        approved_by_user: item.approved_by_user || null,
+      }))
+      setReservations(transformedData)
     }
     setLoading(false)
   }
@@ -86,6 +95,14 @@ export default function AdminDashboard() {
     setUpdating(reservationId)
     const supabase = createClient()
 
+    // 현재 사용자 정보 가져오기
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      alert('로그인이 필요합니다.')
+      setUpdating(null)
+      return
+    }
+
     // 거부인 경우 rejection_reason이 필수
     if (status === 'rejected' && (!reason || !reason.trim())) {
       alert('거부 사유를 입력해주세요.')
@@ -101,23 +118,25 @@ export default function AdminDashboard() {
     // 거부인 경우 rejection_reason 추가, 승인인 경우 null로 설정
     if (status === 'rejected') {
       updateData.rejection_reason = (reason || '').trim()
+      updateData.approved_by = null // 거부 시 승인자 정보 제거
     } else {
       updateData.rejection_reason = null
+      updateData.approved_by = user.id // 승인 시 현재 사용자 ID 저장
     }
 
-    // 한 번에 status와 rejection_reason 업데이트
+    // 한 번에 status, rejection_reason, approved_by 업데이트
     const { data, error } = await supabase
       .from('reservations')
       .update(updateData)
       .eq('id', reservationId)
-      .select('id, status, rejection_reason')
+      .select('id, status, rejection_reason, approved_by')
 
     if (error) {
       console.error('Error updating reservation:', error)
       
       // PGRST204 에러인 경우 (필드가 없음)
-      if (error.code === 'PGRST204' || error.message?.includes('rejection_reason') || error.message?.includes('column')) {
-        const errorMessage = `rejection_reason 필드가 데이터베이스에 없습니다.
+      if (error.code === 'PGRST204' || error.message?.includes('rejection_reason') || error.message?.includes('column') || error.message?.includes('approved_by')) {
+        const errorMessage = `필수 필드가 데이터베이스에 없습니다.
 
 다음 단계를 따라주세요:
 
@@ -127,6 +146,9 @@ export default function AdminDashboard() {
 
 ALTER TABLE reservations 
 ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+
+ALTER TABLE reservations 
+ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NULL;
 
 4. 실행 후 페이지를 새로고침하세요.`
         
@@ -160,6 +182,28 @@ ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
   const handleDeleteClick = (reservationId: string) => {
     setDeletingReservationId(reservationId)
     setDeleteDialogOpen(true)
+  }
+
+  const handleArchiveClick = async () => {
+    if (!confirm('승인 후 2주일이 지난 예약을 보관함으로 이동하시겠습니까?')) {
+      return
+    }
+
+    setArchiving(true)
+    try {
+      const result = await archiveOldReservations()
+      if (result.error) {
+        alert(`아카이브 중 오류가 발생했습니다: ${result.error}`)
+      } else {
+        alert('아카이브가 완료되었습니다.')
+        await fetchReservations()
+      }
+    } catch (error) {
+      console.error('Error archiving:', error)
+      alert('아카이브 중 오류가 발생했습니다.')
+    } finally {
+      setArchiving(false)
+    }
   }
 
   async function deleteReservation(reservationId: string) {
@@ -234,7 +278,26 @@ ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
             </button>
           ))}
         </div>
-        <div className="flex gap-2 justify-end">
+        <div className="flex gap-2 justify-end flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleArchiveClick}
+            disabled={archiving}
+            className="text-sm sm:text-base px-3 sm:px-4"
+          >
+            {archiving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                처리 중...
+              </>
+            ) : (
+              <>
+                <Archive className="w-4 h-4 mr-2" />
+                오래된 예약 보관
+              </>
+            )}
+          </Button>
           <Button
             variant={viewMode === 'list' ? 'default' : 'outline'}
             size="sm"
@@ -281,6 +344,11 @@ ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
                               {room?.name || '알 수 없음'}
                             </CardTitle>
                             {getStatusBadge(reservation.status)}
+                            {reservation.status === 'confirmed' && reservation.approved_by_user && (
+                              <span className="text-xs text-gray-500">
+                                (승인자: {reservation.approved_by_user.name})
+                              </span>
+                            )}
                           </div>
                           <CardDescription className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                             <div className="flex items-center gap-1">

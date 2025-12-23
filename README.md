@@ -84,6 +84,13 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 1. Supabase 프로젝트를 생성합니다.
 2. `supabase/schema.sql` 파일의 내용을 Supabase SQL Editor에서 실행합니다.
 3. Supabase Auth 설정에서 이메일/비밀번호 인증을 활성화합니다.
+4. **이메일 확인 비활성화** (선택사항):
+   - Supabase 대시보드 → Authentication → Settings
+   - "Email Auth" 섹션에서 "Enable email confirmations" 옵션을 비활성화합니다.
+   - 이렇게 하면 회원가입 후 즉시 로그인할 수 있습니다.
+5. 추가 SQL 스크립트 실행:
+   - `supabase/add-approved-by-column.sql` - 승인자 정보 저장을 위한 컬럼 추가
+   - `supabase/create-reservations-archive.sql` - 예약 보관함 테이블 및 함수 생성
 
 ### 4. 개발 서버 실행
 
@@ -119,6 +126,22 @@ npm run dev
 - `purpose`: 예약 사유
 - `status`: 상태 (pending/confirmed/rejected)
 - `attendees`: 동반자 목록 (배열)
+- `approved_by`: 승인자 ID (Foreign Key, users 테이블 참조)
+- `rejection_reason`: 거부 사유 (텍스트)
+
+### reservations_archive 테이블
+- `id`: UUID (Primary Key)
+- `original_id`: 원본 예약 ID
+- `user_id`: 사용자 ID (Foreign Key)
+- `room_id`: 실 ID (Foreign Key)
+- `start_time`: 시작 시간
+- `end_time`: 종료 시간
+- `purpose`: 예약 사유
+- `status`: 상태 (pending/confirmed/rejected)
+- `attendees`: 동반자 목록 (배열)
+- `approved_by`: 승인자 ID (Foreign Key, users 테이블 참조)
+- `rejection_reason`: 거부 사유 (텍스트)
+- `archived_at`: 보관 일시
 
 ## 주요 기능
 

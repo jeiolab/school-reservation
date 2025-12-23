@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import RoomRestrictionManagement from '@/components/admin/room-restriction-management'
+import ArchiveDashboard from '@/components/admin/archive-dashboard'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Archive } from 'lucide-react'
 
-export default async function RestrictionsPage() {
+export default async function ArchivePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -13,7 +13,7 @@ export default async function RestrictionsPage() {
     redirect('/login')
   }
 
-  // 권한 체크: teacher 또는 admin만 접근 가능
+  // Check if user is admin or teacher
   const { data: userProfile } = await supabase
     .from('users')
     .select('role')
@@ -35,16 +35,18 @@ export default async function RestrictionsPage() {
                 <span className="hidden sm:inline">관리자 대시보드</span>
               </Button>
             </Link>
-            <div className="flex-1 sm:flex-none">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">사용금지 공지 관리</h1>
-              <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2">특별실별 사용금지 공지를 관리할 수 있습니다</p>
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 sm:flex-none">
+              <Archive className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+              <div>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">예약 보관함</h1>
+                <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2">승인 후 2주일이 지난 예약 내역</p>
+              </div>
             </div>
           </div>
         </div>
-        <RoomRestrictionManagement />
+        <ArchiveDashboard />
       </div>
     </div>
   )
 }
-
 

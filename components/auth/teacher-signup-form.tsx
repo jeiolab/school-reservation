@@ -105,9 +105,21 @@ export default function TeacherSignupForm() {
         return
       }
 
-      // 3. 로그인 상태로 대시보드로 이동
-      router.push('/dashboard')
-      router.refresh()
+      // 3. 이메일 확인이 비활성화된 경우 자동 로그인
+      // 세션이 있으면 바로 로그인, 없으면 이메일 확인 필요 안내
+      if (authData.session) {
+        // 이메일 확인이 비활성화된 경우 - 세션을 쿠키에 저장하고 바로 로그인
+        const maxAge = 604800 * 4 // 4주
+        document.cookie = `sb-access-token=${authData.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`
+        document.cookie = `sb-refresh-token=${authData.session.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax`
+        
+        // 페이지 새로고침하여 서버에서 세션 인식
+        window.location.href = '/dashboard'
+      } else {
+        // 이메일 확인이 필요한 경우 - 로그인 페이지로 이동하여 로그인 안내
+        alert('회원가입이 완료되었습니다. 이메일을 확인하여 계정을 활성화해주세요.')
+        router.push('/login')
+      }
     } catch (err) {
       if (err instanceof z.ZodError) {
         setError(err.errors[0].message)
