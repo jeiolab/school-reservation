@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Calendar, Clock, MapPin, Users, Loader2, Archive } from 'lucide-react'
 import { format } from 'date-fns'
 import { Room, User as UserType } from '@/types/supabase'
+import { toKoreaTime } from '@/lib/utils'
 
 interface ArchivedReservation {
   id: string
@@ -134,13 +135,13 @@ export default function ArchiveDashboard() {
                     </div>
                     <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                       <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                      <span>{format(new Date(reservation.start_time), 'yyyy년 MM월 dd일')}</span>
+                      <span>{format(toKoreaTime(reservation.start_time), 'yyyy년 MM월 dd일')}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                       <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                       <span>
-                        {format(new Date(reservation.start_time), 'HH:mm')} -{' '}
-                        {format(new Date(reservation.end_time), 'HH:mm')}
+                        {format(toKoreaTime(reservation.start_time), 'HH:mm')} -{' '}
+                        {format(toKoreaTime(reservation.end_time), 'HH:mm')}
                       </span>
                     </div>
                     <div className="pt-2 border-t">
@@ -161,7 +162,7 @@ export default function ArchiveDashboard() {
                     )}
                     <div className="pt-2 border-t">
                       <p className="text-xs text-gray-500">
-                        보관일: {format(new Date(reservation.archived_at), 'yyyy년 MM월 dd일 HH:mm')}
+                        보관일: {format(toKoreaTime(reservation.archived_at), 'yyyy년 MM월 dd일 HH:mm')}
                       </p>
                     </div>
                   </div>

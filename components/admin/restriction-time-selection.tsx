@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select'
 import { Clock } from 'lucide-react'
 import { format, setHours, setMinutes } from 'date-fns'
-import { cn } from '@/lib/utils'
+import { cn, toKoreaTime } from '@/lib/utils'
 
 // Generate time slots (30-minute intervals from 8:00 to 22:00)
 const generateTimeSlots = () => {
@@ -60,11 +60,16 @@ export default function RestrictionTimeSelection({
   const [periodType, setPeriodType] = useState<'weekday' | 'weekend' | 'all' | 'specific'>(
     selectedData?.periodType || 'weekday'
   )
+  // 한국 시간 기준 현재 날짜 가져오기
+  const getKoreaDate = () => {
+    return toKoreaTime(new Date())
+  }
+
   const [startDate, setStartDate] = useState<string>(
-    selectedData?.startDate || format(new Date(), 'yyyy-MM-dd')
+    selectedData?.startDate || format(getKoreaDate(), 'yyyy-MM-dd')
   )
   const [endDate, setEndDate] = useState<string>(
-    selectedData?.endDate || format(new Date(), 'yyyy-MM-dd')
+    selectedData?.endDate || format(getKoreaDate(), 'yyyy-MM-dd')
   )
   const [startTime, setStartTime] = useState<string>(selectedData?.startTime || '')
   const [endTime, setEndTime] = useState<string>(selectedData?.endTime || '')
@@ -93,9 +98,9 @@ export default function RestrictionTimeSelection({
       }
     } else if (periodType === 'specific') {
       if (startDate === endDate) {
-        description = format(new Date(startDate), 'yyyy년 MM월 dd일')
+        description = format(new Date(startDate + 'T00:00:00+09:00'), 'yyyy년 MM월 dd일')
       } else {
-        description = `${format(new Date(startDate), 'yyyy년 MM월 dd일')} - ${format(new Date(endDate), 'yyyy년 MM월 dd일')}`
+        description = `${format(new Date(startDate + 'T00:00:00+09:00'), 'yyyy년 MM월 dd일')} - ${format(new Date(endDate + 'T00:00:00+09:00'), 'yyyy년 MM월 dd일')}`
       }
       if (startTime && endTime) {
         description += ` ${startTime} - ${endTime}`
@@ -135,8 +140,9 @@ export default function RestrictionTimeSelection({
     }
   }
 
-  const minDate = format(new Date(), 'yyyy-MM-dd')
-  const maxDate = format(new Date(new Date().setFullYear(new Date().getFullYear() + 1)), 'yyyy-MM-dd')
+  const koreaNow = getKoreaDate()
+  const minDate = format(koreaNow, 'yyyy-MM-dd')
+  const maxDate = format(new Date(koreaNow.getFullYear() + 1, koreaNow.getMonth(), koreaNow.getDate()), 'yyyy-MM-dd')
 
   // 시간이 모두 선택되면 자동으로 description 업데이트
   useEffect(() => {
@@ -164,8 +170,9 @@ export default function RestrictionTimeSelection({
           onValueChange={(value: 'weekday' | 'weekend' | 'all' | 'specific') => {
             setPeriodType(value)
             if (value !== 'specific') {
-              setStartDate(format(new Date(), 'yyyy-MM-dd'))
-              setEndDate(format(new Date(), 'yyyy-MM-dd'))
+              const koreaDate = getKoreaDate()
+              setStartDate(format(koreaDate, 'yyyy-MM-dd'))
+              setEndDate(format(koreaDate, 'yyyy-MM-dd'))
             }
           }}
         >

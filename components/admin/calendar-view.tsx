@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns'
 import { Reservation, Room, User as UserType } from '@/types/supabase'
+import { toKoreaTime } from '@/lib/utils'
 
 interface ReservationWithDetails extends Reservation {
   rooms: Room | null
@@ -62,7 +63,7 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
 
   const getReservationsForDate = (date: Date) => {
     return reservations.filter((reservation) => {
-      const reservationDate = new Date(reservation.start_time)
+      const reservationDate = toKoreaTime(reservation.start_time)
       return isSameDay(reservationDate, date)
     })
   }
@@ -156,7 +157,7 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
                       <div
                         key={reservation.id}
                         className={`text-[10px] sm:text-xs px-1 py-0.5 rounded border truncate ${getStatusColor(reservation.status)}`}
-                        title={`${reservation.rooms?.name || ''} - ${format(new Date(reservation.start_time), 'HH:mm')}`}
+                        title={`${reservation.rooms?.name || ''} - ${format(toKoreaTime(reservation.start_time), 'HH:mm')}`}
                       >
                         {reservation.rooms?.name || '알 수 없음'}
                       </div>
@@ -212,8 +213,8 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
                       </Badge>
                     </div>
                     <div className="text-sm text-gray-600">
-                      {format(new Date(reservation.start_time), 'HH:mm')} -{' '}
-                      {format(new Date(reservation.end_time), 'HH:mm')}
+                      {format(toKoreaTime(reservation.start_time), 'HH:mm')} -{' '}
+                      {format(toKoreaTime(reservation.end_time), 'HH:mm')}
                     </div>
                     {reservation.purpose && (
                       <div className="text-sm text-gray-600 mt-1">

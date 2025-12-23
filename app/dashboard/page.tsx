@@ -7,7 +7,7 @@ import { Calendar, Clock, MapPin, Users, Plus, LogOut, Settings, AlertCircle } f
 import { format } from 'date-fns'
 import LogoutButton from '@/components/auth/logout-button'
 import DeleteAccountButton from '@/components/auth/delete-account-button'
-import { formatStudentId } from '@/lib/utils'
+import { formatStudentId, toKoreaTime } from '@/lib/utils'
 import { getActiveRoomRestrictions } from '@/app/actions/room-restrictions'
 
 async function getUpcomingReservations(userId: string) {
@@ -233,13 +233,13 @@ export default async function DashboardPage() {
                         <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                           <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                           <span>
-                            {format(new Date(reservation.start_time), 'yyyy년 MM월 dd일')}
+                            {format(toKoreaTime(reservation.start_time), 'yyyy년 MM월 dd일')}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                           <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                           <span>
-                            {format(new Date(reservation.start_time), 'HH:mm')} - {format(new Date(reservation.end_time), 'HH:mm')}
+                            {format(toKoreaTime(reservation.start_time), 'HH:mm')} - {format(toKoreaTime(reservation.end_time), 'HH:mm')}
                           </span>
                         </div>
                         <div className="mt-2 sm:mt-3">
@@ -295,13 +295,13 @@ export default async function DashboardPage() {
                         <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                           <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                           <span>
-                            {format(new Date(reservation.start_time), 'yyyy년 MM월 dd일')}
+                            {format(toKoreaTime(reservation.start_time), 'yyyy년 MM월 dd일')}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                           <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                           <span>
-                            {format(new Date(reservation.start_time), 'HH:mm')} - {format(new Date(reservation.end_time), 'HH:mm')}
+                            {format(toKoreaTime(reservation.start_time), 'HH:mm')} - {format(toKoreaTime(reservation.end_time), 'HH:mm')}
                           </span>
                         </div>
                         <div className="mt-2 sm:mt-3 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-md">

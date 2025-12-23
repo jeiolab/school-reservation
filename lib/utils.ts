@@ -22,3 +22,15 @@ export function formatStudentId(studentId: string | null | undefined): string {
   return studentId
 }
 
+/**
+ * UTC 시간을 한국 시간(UTC+9)으로 변환
+ * @param dateString ISO 문자열 또는 Date 객체
+ * @returns 한국 시간대의 Date 객체
+ */
+export function toKoreaTime(dateString: string | Date): Date {
+  const date = typeof dateString === 'string' ? new Date(dateString) : dateString
+  // UTC 시간에 9시간을 더함
+  const koreaTime = new Date(date.getTime() + (9 * 60 * 60 * 1000))
+  return koreaTime
+}
+

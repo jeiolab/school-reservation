@@ -28,6 +28,7 @@ import {
 import { Calendar, Clock, MapPin, Users, Check, X, Loader2, AlertCircle, Trash2, Archive } from 'lucide-react'
 import { format } from 'date-fns'
 import { Reservation, Room, User as UserType } from '@/types/supabase'
+import { toKoreaTime } from '@/lib/utils'
 import CalendarView from './calendar-view'
 import { archiveOldReservations } from '@/app/actions/archive'
 
@@ -372,13 +373,13 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
                         </div>
                         <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                           <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                          <span>{format(new Date(reservation.start_time), 'yyyy년 MM월 dd일')}</span>
+                          <span>{format(toKoreaTime(reservation.start_time), 'yyyy년 MM월 dd일')}</span>
                         </div>
                         <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                           <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                           <span>
-                            {format(new Date(reservation.start_time), 'HH:mm')} -{' '}
-                            {format(new Date(reservation.end_time), 'HH:mm')}
+                            {format(toKoreaTime(reservation.start_time), 'HH:mm')} -{' '}
+                            {format(toKoreaTime(reservation.end_time), 'HH:mm')}
                           </span>
                         </div>
                         <div className="pt-2 border-t">

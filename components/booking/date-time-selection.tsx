@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Clock, AlertCircle } from 'lucide-react'
 import { format, addDays, isAfter, setHours, setMinutes, startOfDay, isBefore, isSameDay } from 'date-fns'
 import { Reservation } from '@/types/supabase'
-import { cn } from '@/lib/utils'
+import { cn, toKoreaTime } from '@/lib/utils'
 
 interface DateTimeSelectionProps {
   roomId: string
@@ -58,10 +58,10 @@ export default function DateTimeSelection({
     format(koreaNow, 'yyyy-MM-dd')
   )
   const [startTime, setStartTime] = useState<string>(
-    selectedStartTime ? format(new Date(selectedStartTime), 'HH:mm') : ''
+    selectedStartTime ? format(toKoreaTime(selectedStartTime), 'HH:mm') : ''
   )
   const [endTime, setEndTime] = useState<string>(
-    selectedEndTime ? format(new Date(selectedEndTime), 'HH:mm') : ''
+    selectedEndTime ? format(toKoreaTime(selectedEndTime), 'HH:mm') : ''
   )
   const [bookedSlots, setBookedSlots] = useState<Set<string>>(new Set())
   const [restrictedSlots, setRestrictedSlots] = useState<Set<string>>(new Set())
@@ -455,8 +455,8 @@ export default function DateTimeSelection({
                     <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
                       <Clock className="w-4 h-4" />
                       <span>
-                        {format(new Date(`${selectedDate}T${startTime}:00`), 'yyyy년 MM월 dd일 HH:mm')} -{' '}
-                        {format(new Date(`${selectedDate}T${endTime}:00`), 'HH:mm')}
+                        {format(new Date(`${selectedDate}T${startTime}:00+09:00`), 'yyyy년 MM월 dd일 HH:mm')} -{' '}
+                        {format(new Date(`${selectedDate}T${endTime}:00+09:00`), 'HH:mm')}
                       </span>
                     </div>
                     <Button onClick={handleConfirm} className="w-full">
