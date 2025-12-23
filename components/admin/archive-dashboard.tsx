@@ -74,7 +74,7 @@ export default function ArchiveDashboard() {
       default:
         return <Badge>{status}</Badge>
     }
-  }
+  }, [])
 
   if (loading) {
     return (
