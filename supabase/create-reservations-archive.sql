@@ -6,6 +6,7 @@ EXCEPTION
 END $$;
 
 -- Create reservations_archive table
+-- Note: If table already exists, use fix-archive-updated-at.sql to add missing columns
 CREATE TABLE IF NOT EXISTS reservations_archive (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   original_id UUID NOT NULL, -- 원본 예약 ID (참고용)
