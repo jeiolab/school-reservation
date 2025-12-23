@@ -28,26 +28,59 @@ export function formatStudentId(studentId: string | null | undefined): string {
  * @returns 한국 시간대로 표시할 수 있는 Date 객체
  */
 export function toKoreaTime(dateString: string | Date): Date {
-  let utcTimestamp: number
+  let utcDate: Date
   
   if (typeof dateString === 'string') {
-    // ISO 문자열을 파싱 (UTC 시간으로 저장됨)
-    const date = new Date(dateString)
-    // getTime()은 항상 UTC 기준 밀리초를 반환
-    utcTimestamp = date.getTime()
+    // ISO 문자열을 UTC로 파싱
+    utcDate = new Date(dateString)
   } else {
-    // Date 객체인 경우, UTC 타임스탬프를 가져옴
-    utcTimestamp = dateString.getTime()
+    // Date 객체인 경우
+    utcDate = dateString
   }
   
-  // UTC 타임스탬프에 9시간(한국 시간대 오프셋)을 더함
-  const koreaOffsetMs = 9 * 60 * 60 * 1000
-  const koreaTimestamp = utcTimestamp + koreaOffsetMs
+  // UTC 시간의 각 구성 요소를 가져옴
+  const utcYear = utcDate.getUTCFullYear()
+  const utcMonth = utcDate.getUTCMonth()
+  const utcDay = utcDate.getUTCDate()
+  const utcHours = utcDate.getUTCHours()
+  const utcMinutes = utcDate.getUTCMinutes()
+  const utcSeconds = utcDate.getUTCSeconds()
+  const utcMilliseconds = utcDate.getUTCMilliseconds()
   
-  // 새로운 Date 객체 생성
-  // 이 Date 객체는 로컬 시간대로 표시되지만, 우리가 원하는 한국 시간 값을 가짐
-  // format 함수는 이 Date 객체를 로컬 시간대로 포맷팅하므로, 
-  // UTC+9 시간이 올바르게 표시됨
-  return new Date(koreaTimestamp)
+  // 한국 시간(UTC+9) 계산
+  let koreaHours = utcHours + 9
+  let koreaDay = utcDay
+  let koreaMonth = utcMonth
+  let koreaYear = utcYear
+  
+  // 시간이 24를 넘으면 다음 날로
+  if (koreaHours >= 24) {
+    koreaHours -= 24
+    koreaDay += 1
+    // 월의 마지막 날 체크
+    const daysInMonth = new Date(koreaYear, koreaMonth + 1, 0).getDate()
+    if (koreaDay > daysInMonth) {
+      koreaDay = 1
+      koreaMonth += 1
+      if (koreaMonth >= 12) {
+        koreaMonth = 0
+        koreaYear += 1
+      }
+    }
+  }
+  
+  // 로컬 시간대로 한국 시간을 생성
+  // 이렇게 하면 format 함수가 로컬 시간대로 포맷팅할 때 한국 시간이 표시됨
+  const koreaDate = new Date(
+    koreaYear,
+    koreaMonth,
+    koreaDay,
+    koreaHours,
+    utcMinutes,
+    utcSeconds,
+    utcMilliseconds
+  )
+  
+  return koreaDate
 }
 
