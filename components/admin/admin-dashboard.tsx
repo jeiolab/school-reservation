@@ -239,7 +239,7 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
       default:
         return <Badge>{status}</Badge>
     }
-  }
+  }, [])
 
   if (loading) {
     return (
