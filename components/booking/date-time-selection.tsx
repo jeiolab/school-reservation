@@ -79,14 +79,19 @@ export default function DateTimeSelection({
       const startOfSelectedDay = startOfDay(selectedDateObj)
       const endOfSelectedDay = addDays(startOfSelectedDay, 1)
 
+      // UTC로 변환하여 쿼리 (데이터베이스는 UTC로 저장됨)
+      // 한국 시간에서 9시간을 빼서 UTC로 변환
+      const utcStart = new Date(startOfSelectedDay.getTime() - (9 * 60 * 60 * 1000))
+      const utcEnd = new Date(endOfSelectedDay.getTime() - (9 * 60 * 60 * 1000))
+
       // Fetch booked reservations
       const { data, error } = await supabase
         .from('reservations')
         .select('start_time, end_time')
         .eq('room_id', roomId)
         .in('status', ['pending', 'confirmed'])
-        .gte('start_time', startOfSelectedDay.toISOString())
-        .lt('start_time', endOfSelectedDay.toISOString())
+        .gte('start_time', utcStart.toISOString())
+        .lt('start_time', utcEnd.toISOString())
 
       if (error) {
         console.error('Error fetching booked slots:', error)
@@ -300,15 +305,17 @@ export default function DateTimeSelection({
       return
     }
 
-    const startDateTime = new Date(`${selectedDate}T${startTime}:00`)
-    const endDateTime = new Date(`${selectedDate}T${endTime}:00`)
+    // 한국 시간대로 날짜/시간 생성 (UTC로 저장하기 위해 변환)
+    const startDateTimeKorea = new Date(`${selectedDate}T${startTime}:00+09:00`)
+    const endDateTimeKorea = new Date(`${selectedDate}T${endTime}:00+09:00`)
 
-    if (endDateTime <= startDateTime) {
+    if (endDateTimeKorea <= startDateTimeKorea) {
       alert('종료 시간은 시작 시간보다 늦어야 합니다.')
       return
     }
 
-    onSelect(startDateTime.toISOString(), endDateTime.toISOString())
+    // UTC로 변환하여 저장
+    onSelect(startDateTimeKorea.toISOString(), endDateTimeKorea.toISOString())
   }
 
   // 한국 시간 기준으로 최소 날짜 설정

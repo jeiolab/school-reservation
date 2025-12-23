@@ -10,6 +10,11 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSam
 import { Reservation, Room, User as UserType } from '@/types/supabase'
 import { toKoreaTime } from '@/lib/utils'
 
+// 한국 시간 기준 현재 날짜 가져오기
+function getKoreaDate() {
+  return toKoreaTime(new Date())
+}
+
 interface ReservationWithDetails extends Reservation {
   rooms: Room | null
   users: UserType | null
@@ -20,7 +25,7 @@ interface CalendarViewProps {
 }
 
 export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [currentDate, setCurrentDate] = useState(getKoreaDate())
   const [reservations, setReservations] = useState<ReservationWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -35,6 +40,16 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
     setLoading(true)
     const supabase = createClient()
 
+    // 한국 시간 기준으로 월의 시작과 끝 계산
+    const koreaMonthStart = toKoreaTime(monthStart.toISOString())
+    const koreaMonthEnd = toKoreaTime(monthEnd.toISOString())
+    
+    // UTC로 변환하여 쿼리 (데이터베이스는 UTC로 저장됨)
+    const utcMonthStart = new Date(koreaMonthStart.getTime() - (9 * 60 * 60 * 1000))
+    const utcMonthEnd = new Date(koreaMonthEnd.getTime() - (9 * 60 * 60 * 1000))
+    // 월의 마지막 날의 끝까지 포함
+    const utcMonthEndPlus = new Date(utcMonthEnd.getTime() + (24 * 60 * 60 * 1000))
+
     // 캘린더에서는 승인된 예약만 표시
     let query = supabase
       .from('reservations')
@@ -44,8 +59,8 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
         users!user_id (*)
       `)
       .eq('status', 'confirmed')
-      .gte('start_time', monthStart.toISOString())
-      .lte('start_time', monthEnd.toISOString())
+      .gte('start_time', utcMonthStart.toISOString())
+      .lt('start_time', utcMonthEndPlus.toISOString())
 
     const { data, error } = await query.order('start_time', { ascending: true })
 
@@ -89,7 +104,7 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
     setCurrentDate(addMonths(currentDate, 1))
   }
 
-  const today = new Date()
+  const today = getKoreaDate()
   const selectedDateReservations = selectedDate ? getReservationsForDate(selectedDate) : []
 
   return (

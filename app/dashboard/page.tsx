@@ -29,7 +29,7 @@ async function getUpcomingReservations(userId: string) {
     `)
     .eq('user_id', userId)
     .in('status', ['pending', 'confirmed'])
-    .gte('start_time', new Date().toISOString())
+    .gte('start_time', new Date(getKoreaDate().getTime() - (9 * 60 * 60 * 1000)).toISOString())
     .order('start_time', { ascending: true })
     .limit(10)
 

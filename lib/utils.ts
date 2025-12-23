@@ -23,30 +23,31 @@ export function formatStudentId(studentId: string | null | undefined): string {
 }
 
 /**
- * UTC 시간을 한국 시간(UTC+9)으로 변환
+ * UTC 시간을 한국 시간(UTC+9)으로 변환하여 표시
  * @param dateString ISO 문자열 또는 Date 객체
- * @returns 한국 시간대의 Date 객체
+ * @returns 한국 시간대로 표시할 수 있는 Date 객체
  */
 export function toKoreaTime(dateString: string | Date): Date {
-  let date: Date
+  let utcTimestamp: number
   
   if (typeof dateString === 'string') {
-    // ISO 문자열인 경우 UTC로 파싱
-    // ISO 문자열이 'Z'로 끝나면 UTC, 그렇지 않으면 로컬 시간대로 파싱됨
-    if (dateString.endsWith('Z') || dateString.includes('+') || dateString.includes('-', 10)) {
-      // UTC 시간으로 파싱
-      date = new Date(dateString)
-    } else {
-      // 시간대 정보가 없으면 UTC로 가정
-      date = new Date(dateString + 'Z')
-    }
+    // ISO 문자열을 파싱 (UTC 시간으로 저장됨)
+    const date = new Date(dateString)
+    // getTime()은 항상 UTC 기준 밀리초를 반환
+    utcTimestamp = date.getTime()
   } else {
-    date = dateString
+    // Date 객체인 경우, UTC 타임스탬프를 가져옴
+    utcTimestamp = dateString.getTime()
   }
   
-  // UTC 시간을 기준으로 한국 시간(UTC+9) 계산
-  // getTime()은 항상 UTC 기준 밀리초를 반환하므로, 여기에 9시간을 더함
-  const koreaTime = new Date(date.getTime() + (9 * 60 * 60 * 1000))
-  return koreaTime
+  // UTC 타임스탬프에 9시간(한국 시간대 오프셋)을 더함
+  const koreaOffsetMs = 9 * 60 * 60 * 1000
+  const koreaTimestamp = utcTimestamp + koreaOffsetMs
+  
+  // 새로운 Date 객체 생성
+  // 이 Date 객체는 로컬 시간대로 표시되지만, 우리가 원하는 한국 시간 값을 가짐
+  // format 함수는 이 Date 객체를 로컬 시간대로 포맷팅하므로, 
+  // UTC+9 시간이 올바르게 표시됨
+  return new Date(koreaTimestamp)
 }
 
