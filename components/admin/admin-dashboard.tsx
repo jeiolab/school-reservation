@@ -36,6 +36,7 @@ interface ReservationWithDetails extends Reservation {
   rooms: Room | null
   users: UserType | null
   approved_by_user?: UserType | null
+  rejected_by_user?: UserType | null
 }
 
 export default function AdminDashboard() {
@@ -83,7 +84,8 @@ export default function AdminDashboard() {
         *,
         rooms (*),
         users!user_id (*),
-        approved_by_user:users!approved_by (*)
+        approved_by_user:users!approved_by (*),
+        rejected_by_user:users!rejected_by (*)
       `)
       .order('created_at', { ascending: false })
 
@@ -115,6 +117,7 @@ export default function AdminDashboard() {
       const transformedData = (data || []).map((item: any) => ({
         ...item,
         approved_by_user: item.approved_by_user || null,
+        rejected_by_user: item.rejected_by_user || null,
       }))
       setReservations(transformedData)
       
@@ -162,9 +165,11 @@ export default function AdminDashboard() {
     if (status === 'rejected') {
       updateData.rejection_reason = (reason || '').trim()
       updateData.approved_by = null // 거부 시 승인자 정보 제거
+      updateData.rejected_by = user.id // 거부 시 현재 사용자 ID 저장
     } else {
       updateData.rejection_reason = null
       updateData.approved_by = user.id // 승인 시 현재 사용자 ID 저장
+      updateData.rejected_by = null // 승인 시 거부자 정보 제거
     }
 
     // 한 번에 status, rejection_reason, approved_by 업데이트
@@ -172,13 +177,13 @@ export default function AdminDashboard() {
       .from('reservations')
       .update(updateData)
       .eq('id', reservationId)
-      .select('id, status, rejection_reason, approved_by, updated_at')
+      .select('id, status, rejection_reason, approved_by, rejected_by, updated_at')
 
     if (error) {
       console.error('Error updating reservation:', error)
       
       // PGRST204 에러인 경우 (필드가 없음)
-      if (error.code === 'PGRST204' || error.message?.includes('rejection_reason') || error.message?.includes('column') || error.message?.includes('approved_by')) {
+      if (error.code === 'PGRST204' || error.message?.includes('rejection_reason') || error.message?.includes('column') || error.message?.includes('approved_by') || error.message?.includes('rejected_by')) {
         const errorMessage = `필수 필드가 데이터베이스에 없습니다.
 
 다음 단계를 따라주세요:
@@ -192,6 +197,9 @@ ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
 
 ALTER TABLE reservations 
 ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE reservations 
+ADD COLUMN IF NOT EXISTS rejected_by UUID REFERENCES users(id) ON DELETE SET NULL;
 
 4. 실행 후 페이지를 새로고침하세요.`
         
@@ -220,6 +228,7 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
               status: updateData.status,
               rejection_reason: updateData.rejection_reason || null,
               approved_by: updateData.approved_by || null,
+              rejected_by: updateData.rejected_by || null,
               updated_at: updatedData[0].updated_at,
             }
           : reservation
@@ -451,6 +460,11 @@ ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NUL
                             {reservation.status === 'confirmed' && reservation.approved_by_user && (
                               <span className="text-xs text-gray-500">
                                 (승인자: {reservation.approved_by_user.name})
+                              </span>
+                            )}
+                            {reservation.status === 'rejected' && reservation.rejected_by_user && (
+                              <span className="text-xs text-gray-500">
+                                (거부자: {reservation.rejected_by_user.name})
                               </span>
                             )}
                           </div>

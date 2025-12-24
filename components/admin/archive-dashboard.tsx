@@ -20,6 +20,7 @@ interface ArchivedReservation {
   status: 'pending' | 'confirmed' | 'rejected'
   attendees: string[]
   approved_by: string | null
+  rejected_by: string | null
   rejection_reason: string | null
   created_at: string
   updated_at: string
@@ -27,6 +28,7 @@ interface ArchivedReservation {
   rooms: Room | null
   users: UserType | null
   approved_by_user?: UserType | null
+  rejected_by_user?: UserType | null
 }
 
 export default function ArchiveDashboard() {
@@ -43,7 +45,8 @@ export default function ArchiveDashboard() {
         *,
         rooms (*),
         users!user_id (*),
-        approved_by_user:users!approved_by (*)
+        approved_by_user:users!approved_by (*),
+        rejected_by_user:users!rejected_by (*)
       `)
       .order('archived_at', { ascending: false })
 
@@ -54,6 +57,7 @@ export default function ArchiveDashboard() {
       const transformedData = (data || []).map((item: any) => ({
         ...item,
         approved_by_user: item.approved_by_user || null,
+        rejected_by_user: item.rejected_by_user || null,
       }))
       setReservations(transformedData)
     }
@@ -113,6 +117,11 @@ export default function ArchiveDashboard() {
                         {reservation.status === 'confirmed' && reservation.approved_by_user && (
                           <span className="text-xs text-gray-500">
                             (승인자: {reservation.approved_by_user.name})
+                          </span>
+                        )}
+                        {reservation.status === 'rejected' && reservation.rejected_by_user && (
+                          <span className="text-xs text-gray-500">
+                            (거부자: {reservation.rejected_by_user.name})
                           </span>
                         )}
                       </div>

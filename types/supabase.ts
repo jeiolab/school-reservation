@@ -88,6 +88,7 @@ export interface Database {
           attendees: string[]
           rejection_reason: string | null
           approved_by: string | null
+          rejected_by: string | null
           created_at: string
           updated_at: string
         }
@@ -102,6 +103,7 @@ export interface Database {
           attendees?: string[]
           rejection_reason?: string | null
           approved_by?: string | null
+          rejected_by?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -116,6 +118,7 @@ export interface Database {
           attendees?: string[]
           rejection_reason?: string | null
           approved_by?: string | null
+          rejected_by?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -132,6 +135,7 @@ export interface Database {
           status: 'pending' | 'confirmed' | 'rejected'
           attendees: string[]
           approved_by: string | null
+          rejected_by: string | null
           rejection_reason: string | null
           created_at: string
           updated_at: string
@@ -148,6 +152,7 @@ export interface Database {
           status?: 'pending' | 'confirmed' | 'rejected'
           attendees?: string[]
           approved_by?: string | null
+          rejected_by?: string | null
           rejection_reason?: string | null
           created_at: string
           updated_at: string
@@ -164,6 +169,7 @@ export interface Database {
           status?: 'pending' | 'confirmed' | 'rejected'
           attendees?: string[]
           approved_by?: string | null
+          rejected_by?: string | null
           rejection_reason?: string | null
           created_at?: string
           updated_at?: string

@@ -84,21 +84,22 @@ export async function archiveOldReservations() {
     }
 
     // 3단계: 아카이브 테이블에 삽입
-    const archiveData = toArchive.map((reservation: Reservation) => ({
-      original_id: reservation.id,
-      user_id: reservation.user_id,
-      room_id: reservation.room_id,
-      start_time: reservation.start_time,
-      end_time: reservation.end_time,
-      purpose: reservation.purpose,
-      status: reservation.status,
-      attendees: reservation.attendees || [],
-      approved_by: reservation.approved_by,
-      rejection_reason: reservation.rejection_reason,
-      created_at: reservation.created_at,
-      updated_at: reservation.updated_at || reservation.created_at,
-      archived_at: new Date().toISOString()
-    }))
+           const archiveData = toArchive.map((reservation: Reservation) => ({
+             original_id: reservation.id,
+             user_id: reservation.user_id,
+             room_id: reservation.room_id,
+             start_time: reservation.start_time,
+             end_time: reservation.end_time,
+             purpose: reservation.purpose,
+             status: reservation.status,
+             attendees: reservation.attendees || [],
+             approved_by: reservation.approved_by,
+             rejected_by: reservation.rejected_by,
+             rejection_reason: reservation.rejection_reason,
+             created_at: reservation.created_at,
+             updated_at: reservation.updated_at || reservation.created_at,
+             archived_at: new Date().toISOString()
+           }))
 
     const { error: insertError } = await supabase
       .from('reservations_archive')
