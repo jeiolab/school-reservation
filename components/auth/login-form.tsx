@@ -37,21 +37,68 @@ export default function LoginForm() {
     }
   }, [])
 
+  // 쿠키에서 토큰 읽기 헬퍼 함수
+  const getCookie = (name: string): string | null => {
+    if (typeof document === 'undefined') return null
+    const value = `; ${document.cookie}`
+    const parts = value.split(`; ${name}=`)
+    if (parts.length === 2) return parts.pop()?.split(';').shift() || null
+    return null
+  }
+
   const attemptAutoLogin = async (savedEmail: string | null) => {
     if (!savedEmail) return
 
     try {
       const supabase = createClient()
-      // 세션이 있는지 확인
-      const { data: { session } } = await supabase.auth.getSession()
       
-      if (session) {
-        // 이미 로그인되어 있으면 대시보드로 이동
-        window.location.href = '/dashboard'
+      // 1. 먼저 Supabase가 localStorage에 저장한 세션 확인
+      const { data: { session: existingSession } } = await supabase.auth.getSession()
+      
+      if (existingSession) {
+        // 세션이 있고 유효하면 대시보드로 이동
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          // 쿠키도 업데이트 (동기화)
+          const maxAge = 604800 * 4 // 4주
+          document.cookie = `sb-access-token=${existingSession.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`
+          document.cookie = `sb-refresh-token=${existingSession.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax`
+          window.location.href = '/dashboard'
+          return
+        }
+      }
+
+      // 2. 쿠키에서 토큰 읽기
+      const accessToken = getCookie('sb-access-token')
+      const refreshToken = getCookie('sb-refresh-token')
+
+      if (accessToken && refreshToken) {
+        // 쿠키에 토큰이 있으면 세션 복원 시도
+        const { data: { session }, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        })
+
+        if (!error && session) {
+          // 세션이 유효하면 대시보드로 이동
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            window.location.href = '/dashboard'
+            return
+          }
+        } else {
+          // 세션이 만료되었거나 유효하지 않으면 쿠키 삭제
+          document.cookie = 'sb-access-token=; path=/; max-age=0'
+          document.cookie = 'sb-refresh-token=; path=/; max-age=0'
+          localStorage.removeItem('auto_login')
+        }
       }
     } catch (err) {
-      // 자동 로그인 실패 시 무시
-      console.log('Auto login not available')
+      // 자동 로그인 실패 시 쿠키 정리
+      console.log('Auto login not available:', err)
+      document.cookie = 'sb-access-token=; path=/; max-age=0'
+      document.cookie = 'sb-refresh-token=; path=/; max-age=0'
+      localStorage.removeItem('auto_login')
     }
   }
 

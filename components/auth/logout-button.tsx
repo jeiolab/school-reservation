@@ -16,6 +16,9 @@ export default function LogoutButton() {
     document.cookie = 'sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
     document.cookie = 'sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
     
+    // localStorage의 자동 로그인 정보 삭제
+    localStorage.removeItem('auto_login')
+    
     window.location.href = '/login'
   }
 
