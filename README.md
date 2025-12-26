@@ -35,7 +35,7 @@
 ## 프로젝트 구조
 
 ```
-school_reser/
+school-reservation/
 ├── app/                    # Next.js App Router 페이지
 │   ├── layout.tsx         # 루트 레이아웃
 │   ├── page.tsx           # 랜딩 페이지
