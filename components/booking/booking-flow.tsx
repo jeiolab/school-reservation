@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, ArrowRight, Calendar, Clock, Users, MapPin, Repeat } from 'lucide-react'
 import { z } from 'zod'
 import { addWeeks, getDay, format, parseISO } from 'date-fns'
+import { toKoreaTime } from '@/lib/utils'
 import RoomSelection from './room-selection'
 import DateTimeSelection from './date-time-selection'
 
@@ -242,13 +243,11 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
           .single()
         
         const firstReservation = insertedReservations[0]
-        const startTime = new Date(firstReservation.start_time)
-        const endTime = new Date(firstReservation.end_time)
         const roomName = roomData?.name || '알 수 없음'
         
-        // 한국 시간으로 변환
-        const koreaStartTime = new Date(startTime.getTime() + (9 * 60 * 60 * 1000))
-        const koreaEndTime = new Date(endTime.getTime() + (9 * 60 * 60 * 1000))
+        // 한국 시간으로 변환 (toKoreaTime 함수 사용)
+        const koreaStartTime = toKoreaTime(firstReservation.start_time)
+        const koreaEndTime = toKoreaTime(firstReservation.end_time)
         
         const dateStr = format(koreaStartTime, 'yyyy년 MM월 dd일')
         const timeStr = `${format(koreaStartTime, 'HH:mm')} - ${format(koreaEndTime, 'HH:mm')}`
