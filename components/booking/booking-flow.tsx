@@ -177,9 +177,10 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
       }
 
       // Insert all reservations
-      const { error: insertError } = await supabase
+      const { data: insertedReservations, error: insertError } = await supabase
         .from('reservations')
         .insert(reservations)
+        .select()
 
       if (insertError) {
         // Check if it's a double booking error
@@ -229,6 +230,32 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
         }
         setLoading(false)
         return
+      }
+
+      // 예약 성공 - 예약 정보 표시
+      if (insertedReservations && insertedReservations.length > 0) {
+        // 실 정보 가져오기
+        const { data: roomData } = await supabase
+          .from('rooms')
+          .select('name')
+          .eq('id', validatedData.roomId)
+          .single()
+        
+        const firstReservation = insertedReservations[0]
+        const startTime = new Date(firstReservation.start_time)
+        const endTime = new Date(firstReservation.end_time)
+        const roomName = roomData?.name || '알 수 없음'
+        
+        // 한국 시간으로 변환
+        const koreaStartTime = new Date(startTime.getTime() + (9 * 60 * 60 * 1000))
+        const koreaEndTime = new Date(endTime.getTime() + (9 * 60 * 60 * 1000))
+        
+        const dateStr = format(koreaStartTime, 'yyyy년 MM월 dd일')
+        const timeStr = `${format(koreaStartTime, 'HH:mm')} - ${format(koreaEndTime, 'HH:mm')}`
+        const countStr = insertedReservations.length > 1 ? `\n(총 ${insertedReservations.length}건의 예약이 생성되었습니다)` : ''
+        const statusStr = initialStatus === 'confirmed' ? '승인됨' : '대기중'
+        
+        alert(`✅ 예약이 완료되었습니다!\n\n📅 날짜: ${dateStr}\n⏰ 시간: ${timeStr}\n🏢 실: ${roomName}\n📊 상태: ${statusStr}${countStr}\n\n대시보드에서 예약 내역을 확인할 수 있습니다.`)
       }
 
       router.push('/dashboard')
