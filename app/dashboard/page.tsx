@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { Calendar, Clock, MapPin, Users, Plus, LogOut, Settings, AlertCircle } from 'lucide-react'
+import { Calendar, Clock, MapPin, Users, Plus, LogOut, Settings, AlertCircle, Info } from 'lucide-react'
 import { format } from 'date-fns'
 import LogoutButton from '@/components/auth/logout-button'
 import DeleteAccountButton from '@/components/auth/delete-account-button'
@@ -181,6 +181,27 @@ export default async function DashboardPage() {
           <p className="text-sm sm:text-base text-gray-600">
             특별실 예약을 시작해보세요
           </p>
+        </div>
+
+        {/* Important Notice */}
+        <div className="mb-6 sm:mb-8">
+          <Card className="bg-blue-50 border-l-4 border-l-blue-600 shadow-md">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="flex-shrink-0 mt-0.5">
+                  <Info className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base sm:text-lg font-bold text-blue-900 mb-2">
+                    예약 안내
+                  </h3>
+                  <p className="text-sm sm:text-base text-blue-800 leading-relaxed">
+                    특별실 사용은 예약 시스템으로 운영됩니다. 예약 후 담당 선생님의 승인이 있어야 예약 완료가 되며, 예약 완료 후 특별실을 사용할 수 있습니다.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Room Restrictions Notice */}
