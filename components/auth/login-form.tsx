@@ -28,25 +28,23 @@ export default function LoginForm() {
   }
 
   const attemptAutoLogin = useCallback(async (savedEmail: string | null) => {
-    if (!savedEmail) return
-
     try {
       const supabase = createClient()
       
       // 1. 먼저 Supabase가 localStorage에 저장한 세션 확인
-      const { data: { session: existingSession } } = await supabase.auth.getSession()
+      const { data: { session: existingSession }, error: sessionError } = await supabase.auth.getSession()
       
-      if (existingSession) {
-        // 세션이 있고 유효하면 대시보드로 이동
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
+      if (existingSession && !sessionError) {
+        // 세션이 있고 유효하면 사용자 확인
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        if (user && !userError) {
           // 쿠키도 업데이트 (동기화)
           const maxAge = 604800 * 4 // 4주
           const isProduction = process.env.NODE_ENV === 'production'
           const secureFlag = isProduction ? '; Secure' : ''
           document.cookie = `sb-access-token=${existingSession.access_token}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`
           document.cookie = `sb-refresh-token=${existingSession.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax${secureFlag}`
-          window.location.href = '/dashboard'
+          router.push('/dashboard')
           return
         }
       }
@@ -63,10 +61,10 @@ export default function LoginForm() {
         })
 
         if (!error && session) {
-          // 세션이 유효하면 대시보드로 이동
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            window.location.href = '/dashboard'
+          // 세션이 유효하면 사용자 확인 후 대시보드로 이동
+          const { data: { user }, error: userError } = await supabase.auth.getUser()
+          if (user && !userError) {
+            router.push('/dashboard')
             return
           }
         } else {
@@ -75,17 +73,21 @@ export default function LoginForm() {
           document.cookie = 'sb-refresh-token=; path=/; max-age=0'
           localStorage.removeItem('auto_login')
         }
+      } else if (savedEmail) {
+        // 쿠키와 세션이 없지만 이메일이 저장되어 있으면 자동 로그인 불가
+        // (비밀번호가 없으므로 자동 로그인 불가)
+        console.log('Auto login not available: no saved tokens')
       }
     } catch (err) {
       // 자동 로그인 실패 시 쿠키 정리
-      console.log('Auto login not available:', err)
+      console.log('Auto login error:', err)
       document.cookie = 'sb-access-token=; path=/; max-age=0'
       document.cookie = 'sb-refresh-token=; path=/; max-age=0'
       localStorage.removeItem('auto_login')
     }
-  }, [])
+  }, [router])
 
-  // 저장된 로그인 정보 불러오기
+  // 저장된 로그인 정보 불러오기 및 자동 로그인 시도
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedEmail = localStorage.getItem('saved_email')
@@ -96,9 +98,15 @@ export default function LoginForm() {
         setRememberMe(true)
       }
       
-      if (savedAutoLogin) {
-        setAutoLogin(true)
-        // 자동 로그인 시도
+      // 자동 로그인 체크: auto_login이 true이거나 쿠키/세션이 있으면 시도
+      const accessToken = getCookie('sb-access-token')
+      const refreshToken = getCookie('sb-refresh-token')
+      
+      if (savedAutoLogin || (accessToken && refreshToken)) {
+        if (savedAutoLogin) {
+          setAutoLogin(true)
+        }
+        // 자동 로그인 시도 (이메일이 없어도 쿠키/세션이 있으면 시도)
         attemptAutoLogin(savedEmail)
       }
     }
