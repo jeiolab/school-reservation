@@ -258,7 +258,7 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
         let message = `✅ 예약신청이 완료되었습니다!\n\n📅 날짜: ${dateStr}\n⏰ 시간: ${timeStr}\n🏢 실: ${roomName}\n📊 상태: ${statusStr}${countStr}\n\n`
         
         if (initialStatus === 'pending') {
-          message += '⚠️ 담당샘에게 구두로 허락을 받아야 승인처리가 됩니다.\n\n'
+          message += '⚠️ 이후 담당샘에게 구두로 허락을 받아야 승인처리가 됩니다.\n\n'
         }
         
         message += '대시보드에서 예약 내역을 확인할 수 있습니다.'
