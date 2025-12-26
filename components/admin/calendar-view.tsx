@@ -256,7 +256,23 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
                         if (Array.isArray(attendees)) {
                           attendeesArray = attendees;
                         } else if (typeof attendees === 'string') {
-                          attendeesArray = attendees.split(',').map((a: string) => a.trim()).filter(Boolean);
+                          // JSON 배열 문자열인지 확인 (예: '["이름1", "이름2"]')
+                          if (attendees.trim().startsWith('[') && attendees.trim().endsWith(']')) {
+                            try {
+                              const parsed = JSON.parse(attendees);
+                              if (Array.isArray(parsed)) {
+                                attendeesArray = parsed;
+                              } else {
+                                attendeesArray = attendees.split(',').map((a: string) => a.trim()).filter(Boolean);
+                              }
+                            } catch {
+                              // JSON 파싱 실패 시 일반 문자열로 처리
+                              attendeesArray = attendees.split(',').map((a: string) => a.trim()).filter(Boolean);
+                            }
+                          } else {
+                            // 일반 쉼표로 구분된 문자열
+                            attendeesArray = attendees.split(',').map((a: string) => a.trim()).filter(Boolean);
+                          }
                         }
                         return attendeesArray.length > 0 ? attendeesArray.join(', ') : '없음';
                       })()}
