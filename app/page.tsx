@@ -46,6 +46,13 @@ export default async function HomePage() {
             </div>
           </div>
 
+          {/* Notice Section */}
+          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 sm:p-6 rounded-lg shadow-sm mb-8 sm:mb-12 md:mb-16 max-w-3xl mx-auto">
+            <p className="text-sm sm:text-base md:text-lg text-gray-700 leading-relaxed">
+              <span className="font-semibold text-blue-700">안내:</span> 특별실 사용은 예약 시스템으로 운영됩니다. 예약 후 담당 선생님의 승인이 있어야 예약 완료가 되며, 예약 완료 후 특별실을 사용할 수 있습니다.
+            </p>
+          </div>
+
           {/* Features Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8 mt-12 sm:mt-16 md:mt-20">
             <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow">
