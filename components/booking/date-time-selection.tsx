@@ -87,31 +87,56 @@ export default function DateTimeSelection({
       const utcEnd = new Date(endOfSelectedDay.getTime() - (9 * 60 * 60 * 1000))
 
       // Fetch booked reservations - 확정된 예약만 비활성화
+      // 선택한 날짜와 겹치는 모든 confirmed 예약을 가져옴
+      // 예약이 선택한 날짜와 겹치는 조건: start_time < 선택날짜_끝 AND end_time > 선택날짜_시작
       const { data, error } = await supabase
         .from('reservations')
         .select('start_time, end_time, status')
         .eq('room_id', roomId)
         .eq('status', 'confirmed') // 확정된 예약만 가져오기
-        .gte('start_time', utcStart.toISOString())
         .lt('start_time', utcEnd.toISOString())
+        .gt('end_time', utcStart.toISOString())
 
       if (error) {
         console.error('Error fetching booked slots:', error)
+        setBookedSlots(new Set())
       } else {
         const booked = new Set<string>()
-        data?.forEach((reservation: Reservation) => {
-          // confirmed 상태인 예약만 비활성화
-          if (reservation.status === 'confirmed') {
-            const start = toKoreaTime(reservation.start_time)
-            const end = toKoreaTime(reservation.end_time)
-            let current = new Date(start)
-
-            while (current < end) {
-              booked.add(format(current, 'HH:mm'))
-              current = new Date(current.getTime() + 30 * 60 * 1000) // Add 30 minutes
+        if (data && Array.isArray(data)) {
+          console.log(`Found ${data.length} confirmed reservations for room ${roomId} on ${selectedDate}`)
+          data.forEach((reservation: Reservation) => {
+            // confirmed 상태인 예약만 비활성화 (이중 체크)
+            if (reservation.status === 'confirmed') {
+              const start = toKoreaTime(reservation.start_time)
+              const end = toKoreaTime(reservation.end_time)
+              
+              // 선택한 날짜의 시작과 끝 시간
+              const selectedDateStart = new Date(selectedDate + 'T00:00:00+09:00')
+              const selectedDateEnd = new Date(selectedDate + 'T23:59:59+09:00')
+              
+              // 예약이 선택한 날짜와 겹치는 부분만 비활성화
+              const overlapStart = start > selectedDateStart ? start : selectedDateStart
+              const overlapEnd = end < selectedDateEnd ? end : selectedDateEnd
+              
+              // 겹치는 시간 범위가 있는 경우에만 비활성화
+              if (overlapStart < overlapEnd) {
+                let current = new Date(overlapStart)
+                
+                // 겹치는 시간 범위의 모든 30분 단위 시간 슬롯을 비활성화
+                while (current <= overlapEnd) {
+                  // 선택한 날짜와 같은 날인 경우에만 추가
+                  if (isSameDay(current, selectedDateStart)) {
+                    const timeSlot = format(current, 'HH:mm')
+                    booked.add(timeSlot)
+                    console.log(`Disabling time slot: ${timeSlot} (reservation: ${format(start, 'HH:mm')} - ${format(end, 'HH:mm')})`)
+                  }
+                  current = new Date(current.getTime() + 30 * 60 * 1000) // Add 30 minutes
+                }
+              }
             }
-          }
-        })
+          })
+        }
+        console.log(`Total booked slots: ${booked.size}`, Array.from(booked))
         setBookedSlots(booked)
       }
 
