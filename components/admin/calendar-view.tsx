@@ -250,7 +250,7 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
                     )}
                     <div className="text-sm text-gray-600 mt-1">
                       동반자: {(() => {
-                        const attendees: string[] | string | null | undefined = reservation.attendees;
+                        const attendees: any = reservation.attendees;
                         if (!attendees) return '없음';
                         let attendeesArray: string[] = [];
                         if (Array.isArray(attendees)) {
