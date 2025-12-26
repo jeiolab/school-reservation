@@ -114,11 +114,39 @@ export default function AdminDashboard() {
     } else {
       console.log('Fetched reservations:', data?.length || 0, 'items')
       // Transform data to match our interface
-      const transformedData = (data || []).map((item: any) => ({
-        ...item,
-        approved_by_user: item.approved_by_user || null,
-        rejected_by_user: item.rejected_by_user || null,
-      }))
+      const transformedData = (data || []).map((item: any) => {
+        // attendees가 문자열인 경우 배열로 변환
+        let attendees = item.attendees
+        if (attendees) {
+          if (typeof attendees === 'string') {
+            try {
+              // JSON 문자열인 경우 파싱
+              attendees = JSON.parse(attendees)
+            } catch {
+              // JSON 파싱 실패 시 쉼표로 분리
+              attendees = attendees.split(',').map((a: string) => a.trim()).filter(Boolean)
+            }
+          }
+          // 배열이 아닌 경우 빈 배열로 설정
+          if (!Array.isArray(attendees)) {
+            attendees = []
+          }
+        } else {
+          attendees = []
+        }
+        
+        // 디버깅: attendees 데이터 확인
+        if (attendees && attendees.length > 0) {
+          console.log('Reservation ID:', item.id, 'Attendees:', attendees, 'Type:', typeof item.attendees)
+        }
+        
+        return {
+          ...item,
+          attendees,
+          approved_by_user: item.approved_by_user || null,
+          rejected_by_user: item.rejected_by_user || null,
+        }
+      })
       setReservations(transformedData)
       
       // 데이터가 없을 때도 로그 출력
@@ -505,19 +533,24 @@ ADD COLUMN IF NOT EXISTS rejected_by UUID REFERENCES users(id) ON DELETE SET NUL
                             <Users className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium text-gray-500 mb-1">
-                                동반자 {reservation.attendees && Array.isArray(reservation.attendees) && reservation.attendees.length > 0 
-                                  ? `(${reservation.attendees.length}명)` 
-                                  : '(없음)'}
+                                동반자 {(() => {
+                                  const attendees = reservation.attendees
+                                  if (!attendees) return '(없음)'
+                                  const attendeesArray = Array.isArray(attendees) ? attendees : (typeof attendees === 'string' ? attendees.split(',').map((a: string) => a.trim()).filter(Boolean) : [])
+                                  return attendeesArray.length > 0 ? `(${attendeesArray.length}명)` : '(없음)'
+                                })()}
                               </p>
-                              {reservation.attendees && 
-                               Array.isArray(reservation.attendees) && 
-                               reservation.attendees.length > 0 ? (
-                                <p className="text-xs sm:text-sm text-gray-700 break-words">
-                                  {reservation.attendees.join(', ')}
-                                </p>
-                              ) : (
-                                <p className="text-xs sm:text-sm text-gray-400 italic">동반자 없음</p>
-                              )}
+                              {(() => {
+                                const attendees = reservation.attendees
+                                if (!attendees) {
+                                  return <p className="text-xs sm:text-sm text-gray-400 italic">동반자 없음</p>
+                                }
+                                const attendeesArray = Array.isArray(attendees) ? attendees : (typeof attendees === 'string' ? attendees.split(',').map((a: string) => a.trim()).filter(Boolean) : [])
+                                if (attendeesArray.length > 0) {
+                                  return <p className="text-xs sm:text-sm text-gray-700 break-words">{attendeesArray.join(', ')}</p>
+                                }
+                                return <p className="text-xs sm:text-sm text-gray-400 italic">동반자 없음</p>
+                              })()}
                             </div>
                           </div>
                         </div>
