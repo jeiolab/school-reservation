@@ -249,11 +249,17 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
                       </div>
                     )}
                     <div className="text-sm text-gray-600 mt-1">
-                      동반자: {reservation.attendees && 
-                               Array.isArray(reservation.attendees) && 
-                               reservation.attendees.length > 0 
-                                ? reservation.attendees.join(', ') 
-                                : '없음'}
+                      동반자: {(() => {
+                        const attendees: string[] | string | null | undefined = reservation.attendees;
+                        if (!attendees) return '없음';
+                        let attendeesArray: string[] = [];
+                        if (Array.isArray(attendees)) {
+                          attendeesArray = attendees;
+                        } else if (typeof attendees === 'string') {
+                          attendeesArray = attendees.split(',').map((a: string) => a.trim()).filter(Boolean);
+                        }
+                        return attendeesArray.length > 0 ? attendeesArray.join(', ') : '없음';
+                      })()}
                     </div>
                   </div>
                 )
