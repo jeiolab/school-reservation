@@ -196,7 +196,7 @@ export default async function DashboardPage() {
                     예약 안내
                   </h3>
                   <p className="text-sm sm:text-base text-blue-800 leading-relaxed">
-                    특별실 사용은 예약 시스템으로 운영됩니다. 예약 후 담당 선생님의 승인이 있어야 예약 완료가 되며, 예약 완료 후 특별실을 사용할 수 있습니다.
+                    특별실 사용은 예약 시스템으로 운영됩니다. 예약 후 담당 선생님에게 구두로 허락을 요청하세요. 이후 담당 선생님께서 승인을 해주셔야 예약 완료가 되며, 예약 완료 후 특별실을 사용할 수 있습니다.
                   </p>
                 </div>
               </div>
