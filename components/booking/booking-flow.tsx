@@ -255,7 +255,7 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
         const countStr = insertedReservations.length > 1 ? `\n(총 ${insertedReservations.length}건의 예약이 생성되었습니다)` : ''
         const statusStr = initialStatus === 'confirmed' ? '승인됨' : '대기중'
         
-        let message = `✅ 예약이 완료되었습니다!\n\n📅 날짜: ${dateStr}\n⏰ 시간: ${timeStr}\n🏢 실: ${roomName}\n📊 상태: ${statusStr}${countStr}\n\n`
+        let message = `✅ 예약신청이 완료되었습니다!\n\n📅 날짜: ${dateStr}\n⏰ 시간: ${timeStr}\n🏢 실: ${roomName}\n📊 상태: ${statusStr}${countStr}\n\n`
         
         if (initialStatus === 'pending') {
           message += '⚠️ 담당샘에게 구두로 허락을 받아야 승인처리가 됩니다.\n\n'
