@@ -150,7 +150,7 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
           // 쿼리 오류가 발생해도 데이터베이스 트리거가 최종 방어선이므로 계속 진행
         } else if (allReservations) {
           // 클라이언트 측에서 겹침 체크
-          const conflictingReservation = allReservations.find(existing => {
+          const conflictingReservation = allReservations.find((existing: { id: string; start_time: string; end_time: string; status: string }) => {
             const existingStart = new Date(existing.start_time)
             const existingEnd = new Date(existing.end_time)
             const newStart = new Date(reservation.start_time)
@@ -194,7 +194,7 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
               .in('status', ['pending', 'confirmed'])
             
             if (conflictingReservations) {
-              const conflicting = conflictingReservations.find(existing => {
+              const conflicting = conflictingReservations.find((existing: { status: string; start_time: string; end_time: string }) => {
                 const existingStart = new Date(existing.start_time)
                 const existingEnd = new Date(existing.end_time)
                 const newStart = new Date(reservation.start_time)
