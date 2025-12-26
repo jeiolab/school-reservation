@@ -152,6 +152,13 @@ CREATE POLICY "Admins can update reservation status"
     )
   );
 
+-- Allow all authenticated users to view confirmed reservations
+-- This is necessary for the booking time selection to work properly
+-- Users need to see which time slots are already booked by confirmed reservations
+CREATE POLICY "Anyone can view confirmed reservations"
+  ON reservations FOR SELECT
+  USING (status = 'confirmed');
+
 -- Insert sample data (optional, for testing)
 -- INSERT INTO rooms (name, capacity, location, facilities) VALUES
 -- ('음악실', 30, '2층', ARRAY['피아노', '스피커', '마이크']),
