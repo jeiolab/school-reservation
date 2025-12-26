@@ -86,12 +86,12 @@ export default function DateTimeSelection({
       const utcStart = new Date(startOfSelectedDay.getTime() - (9 * 60 * 60 * 1000))
       const utcEnd = new Date(endOfSelectedDay.getTime() - (9 * 60 * 60 * 1000))
 
-      // Fetch booked reservations
+      // Fetch booked reservations - 확정된 예약만 비활성화
       const { data, error } = await supabase
         .from('reservations')
-        .select('start_time, end_time')
+        .select('start_time, end_time, status')
         .eq('room_id', roomId)
-        .in('status', ['pending', 'confirmed'])
+        .eq('status', 'confirmed') // 확정된 예약만 가져오기
         .gte('start_time', utcStart.toISOString())
         .lt('start_time', utcEnd.toISOString())
 
@@ -100,13 +100,16 @@ export default function DateTimeSelection({
       } else {
         const booked = new Set<string>()
         data?.forEach((reservation: Reservation) => {
-          const start = toKoreaTime(reservation.start_time)
-          const end = toKoreaTime(reservation.end_time)
-          let current = new Date(start)
+          // confirmed 상태인 예약만 비활성화
+          if (reservation.status === 'confirmed') {
+            const start = toKoreaTime(reservation.start_time)
+            const end = toKoreaTime(reservation.end_time)
+            let current = new Date(start)
 
-          while (current < end) {
-            booked.add(format(current, 'HH:mm'))
-            current = new Date(current.getTime() + 30 * 60 * 1000) // Add 30 minutes
+            while (current < end) {
+              booked.add(format(current, 'HH:mm'))
+              current = new Date(current.getTime() + 30 * 60 * 1000) // Add 30 minutes
+            }
           }
         })
         setBookedSlots(booked)
