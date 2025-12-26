@@ -534,18 +534,28 @@ ADD COLUMN IF NOT EXISTS rejected_by UUID REFERENCES users(id) ON DELETE SET NUL
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium text-gray-500 mb-1">
                                 동반자 {(() => {
-                                  const attendees = reservation.attendees
+                                  const attendees: any = reservation.attendees
                                   if (!attendees) return '(없음)'
-                                  const attendeesArray = Array.isArray(attendees) ? attendees : (typeof attendees === 'string' ? attendees.split(',').map((a: string) => a.trim()).filter(Boolean) : [])
+                                  let attendeesArray: string[] = []
+                                  if (Array.isArray(attendees)) {
+                                    attendeesArray = attendees
+                                  } else if (typeof attendees === 'string') {
+                                    attendeesArray = attendees.split(',').map((a: string) => a.trim()).filter(Boolean)
+                                  }
                                   return attendeesArray.length > 0 ? `(${attendeesArray.length}명)` : '(없음)'
                                 })()}
                               </p>
                               {(() => {
-                                const attendees = reservation.attendees
+                                const attendees: any = reservation.attendees
                                 if (!attendees) {
                                   return <p className="text-xs sm:text-sm text-gray-400 italic">동반자 없음</p>
                                 }
-                                const attendeesArray = Array.isArray(attendees) ? attendees : (typeof attendees === 'string' ? attendees.split(',').map((a: string) => a.trim()).filter(Boolean) : [])
+                                let attendeesArray: string[] = []
+                                if (Array.isArray(attendees)) {
+                                  attendeesArray = attendees
+                                } else if (typeof attendees === 'string') {
+                                  attendeesArray = attendees.split(',').map((a: string) => a.trim()).filter(Boolean)
+                                }
                                 if (attendeesArray.length > 0) {
                                   return <p className="text-xs sm:text-sm text-gray-700 break-words">{attendeesArray.join(', ')}</p>
                                 }
