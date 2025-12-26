@@ -16,6 +16,7 @@ interface DateTimeSelectionProps {
   onSelect: (startTime: string, endTime: string) => void
   selectedStartTime?: string
   selectedEndTime?: string
+  refreshTrigger?: number // 예약 생성 후 강제 리프레시를 위한 트리거
 }
 
 // Generate time slots (30-minute intervals from 8:00 to 22:00)
@@ -44,6 +45,7 @@ export default function DateTimeSelection({
   onSelect,
   selectedStartTime,
   selectedEndTime,
+  refreshTrigger,
 }: DateTimeSelectionProps) {
   // 한국 시간 기준 현재 시간 가져오기 (UTC + 9시간)
   const getKoreaTime = () => {
@@ -231,7 +233,7 @@ export default function DateTimeSelection({
     }
 
     fetchBookedSlots()
-  }, [roomId, selectedDate])
+  }, [roomId, selectedDate, refreshTrigger])
 
   const isSlotBooked = (slot: string) => {
     return bookedSlots.has(slot)
@@ -313,6 +315,15 @@ export default function DateTimeSelection({
       alert('종료 시간은 시작 시간보다 늦어야 합니다.')
       return
     }
+
+    // 선택한 시간대를 즉시 bookedSlots에 추가하여 중복 예약 방지
+    const newBookedSlots = new Set(bookedSlots)
+    let current = new Date(startDateTimeKorea)
+    while (current < endDateTimeKorea) {
+      newBookedSlots.add(format(current, 'HH:mm'))
+      current = new Date(current.getTime() + 30 * 60 * 1000) // Add 30 minutes
+    }
+    setBookedSlots(newBookedSlots)
 
     // UTC로 변환하여 저장
     onSelect(startDateTimeKorea.toISOString(), endDateTimeKorea.toISOString())

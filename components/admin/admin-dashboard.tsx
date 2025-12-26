@@ -503,13 +503,18 @@ ADD COLUMN IF NOT EXISTS rejected_by UUID REFERENCES users(id) ON DELETE SET NUL
                         {reservation.attendees && 
                          Array.isArray(reservation.attendees) && 
                          reservation.attendees.length > 0 && (
-                          <div className="pt-1">
-                            <p className="text-xs font-medium text-gray-500 mb-1">동반자</p>
-                            <p className="text-xs sm:text-sm text-gray-600 line-clamp-1">
-                              {Array.isArray(reservation.attendees) 
-                                ? reservation.attendees.join(', ')
-                                : String(reservation.attendees)}
-                            </p>
+                          <div className="pt-2 border-t">
+                            <div className="flex items-start gap-2">
+                              <Users className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-500 mb-1">동반자 ({reservation.attendees.length}명)</p>
+                                <p className="text-xs sm:text-sm text-gray-700 break-words">
+                                  {Array.isArray(reservation.attendees) 
+                                    ? reservation.attendees.join(', ')
+                                    : String(reservation.attendees)}
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         )}
                         {reservation.status === 'rejected' && (

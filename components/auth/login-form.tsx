@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -18,25 +18,6 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // 저장된 로그인 정보 불러오기
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedEmail = localStorage.getItem('saved_email')
-      const savedAutoLogin = localStorage.getItem('auto_login') === 'true'
-      
-      if (savedEmail) {
-        setEmail(savedEmail)
-        setRememberMe(true)
-      }
-      
-      if (savedAutoLogin) {
-        setAutoLogin(true)
-        // 자동 로그인 시도
-        attemptAutoLogin(savedEmail)
-      }
-    }
-  }, [])
-
   // 쿠키에서 토큰 읽기 헬퍼 함수
   const getCookie = (name: string): string | null => {
     if (typeof document === 'undefined') return null
@@ -46,7 +27,7 @@ export default function LoginForm() {
     return null
   }
 
-  const attemptAutoLogin = async (savedEmail: string | null) => {
+  const attemptAutoLogin = useCallback(async (savedEmail: string | null) => {
     if (!savedEmail) return
 
     try {
@@ -100,7 +81,26 @@ export default function LoginForm() {
       document.cookie = 'sb-refresh-token=; path=/; max-age=0'
       localStorage.removeItem('auto_login')
     }
-  }
+  }, [])
+
+  // 저장된 로그인 정보 불러오기
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedEmail = localStorage.getItem('saved_email')
+      const savedAutoLogin = localStorage.getItem('auto_login') === 'true'
+      
+      if (savedEmail) {
+        setEmail(savedEmail)
+        setRememberMe(true)
+      }
+      
+      if (savedAutoLogin) {
+        setAutoLogin(true)
+        // 자동 로그인 시도
+        attemptAutoLogin(savedEmail)
+      }
+    }
+  }, [attemptAutoLogin])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()

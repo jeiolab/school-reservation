@@ -14,6 +14,13 @@ const nextConfig = {
         tls: false,
       }
     }
+    // Edge Runtime 경고 억제
+    config.ignoreWarnings = [
+      {
+        module: /node_modules\/@supabase\/realtime-js/,
+        message: /A Node.js API is used/,
+      },
+    ]
     return config
   },
 }

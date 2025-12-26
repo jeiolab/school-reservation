@@ -73,6 +73,8 @@ CREATE TRIGGER update_reservations_updated_at BEFORE UPDATE ON reservations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Function to check for overlapping reservations
+-- 개선된 겹침 체크 로직: 두 시간 범위가 겹치는지 확인
+-- 겹침 조건: start_time < NEW.end_time AND end_time > NEW.start_time
 CREATE OR REPLACE FUNCTION check_overlapping_reservations()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -81,11 +83,8 @@ BEGIN
     WHERE room_id = NEW.room_id
       AND id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::uuid)
       AND status IN ('pending', 'confirmed')
-      AND (
-        (start_time <= NEW.start_time AND end_time > NEW.start_time) OR
-        (start_time < NEW.end_time AND end_time >= NEW.end_time) OR
-        (start_time >= NEW.start_time AND end_time <= NEW.end_time)
-      )
+      AND start_time < NEW.end_time
+      AND end_time > NEW.start_time
   ) THEN
     RAISE EXCEPTION '해당 시간대에 이미 예약이 존재합니다.';
   END IF;

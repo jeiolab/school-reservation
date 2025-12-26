@@ -43,6 +43,7 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
   })
   const [isRecurring, setIsRecurring] = useState(false)
   const [recurringWeeks, setRecurringWeeks] = useState<string>('4')
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   const handleRoomSelect = (roomId: string) => {
     setFormData({ ...formData, roomId })
@@ -133,6 +134,43 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
         }
       })
 
+      // 예약 생성 전 최종 중복 체크
+      // 모든 예약에 대해 중복 체크 수행
+      for (const reservation of reservations) {
+        // 해당 실의 모든 pending/confirmed 예약을 가져와서 클라이언트 측에서 겹침 체크
+        // 두 시간 범위가 겹치는 조건: start_time < reservation.end_time AND end_time > reservation.start_time
+        const { data: allReservations, error: checkError } = await supabase
+          .from('reservations')
+          .select('id, start_time, end_time')
+          .eq('room_id', reservation.room_id)
+          .in('status', ['pending', 'confirmed'])
+
+        if (checkError) {
+          console.error('Error checking for conflicts:', checkError)
+          // 쿼리 오류가 발생해도 데이터베이스 트리거가 최종 방어선이므로 계속 진행
+        } else if (allReservations) {
+          // 클라이언트 측에서 겹침 체크
+          const hasConflict = allReservations.some(existing => {
+            const existingStart = new Date(existing.start_time)
+            const existingEnd = new Date(existing.end_time)
+            const newStart = new Date(reservation.start_time)
+            const newEnd = new Date(reservation.end_time)
+            
+            // 두 시간 범위가 겹치는지 확인
+            return existingStart < newEnd && existingEnd > newStart
+          })
+
+          if (hasConflict) {
+            setError('해당 시간대에 이미 예약이 존재합니다. 다른 시간을 선택해주세요.')
+            setLoading(false)
+            // 시간 선택 단계로 돌아가서 예약된 시간대를 다시 불러오기
+            setStep(2)
+            setRefreshTrigger(prev => prev + 1)
+            return
+          }
+        }
+      }
+
       // Insert all reservations
       const { error: insertError } = await supabase
         .from('reservations')
@@ -140,8 +178,11 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
 
       if (insertError) {
         // Check if it's a double booking error
-        if (insertError.message.includes('이미 예약이 존재합니다')) {
-          setError('해당 시간대에 이미 예약이 존재합니다. 다른 시간을 선택해주세요.')
+        if (insertError.message.includes('이미 예약이 존재합니다') || insertError.message.includes('사용금지')) {
+          setError('해당 시간대에 이미 예약이 존재하거나 사용금지 시간입니다. 다른 시간을 선택해주세요.')
+          // 시간 선택 단계로 돌아가서 예약된 시간대를 다시 불러오기
+          setStep(2)
+          setRefreshTrigger(prev => prev + 1)
         } else {
           setError(insertError.message || '예약 생성 중 오류가 발생했습니다.')
         }
@@ -218,6 +259,7 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
             onSelect={handleDateTimeSelect}
             selectedStartTime={formData.startTime}
             selectedEndTime={formData.endTime}
+            refreshTrigger={refreshTrigger}
           />
         </div>
       )}
