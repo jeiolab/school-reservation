@@ -9,9 +9,16 @@ export async function createClient() {
   const accessToken = cookieStore.get('sb-access-token')?.value
   const refreshToken = cookieStore.get('sb-refresh-token')?.value
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase environment variables are not configured')
+  }
+
   const supabase = createSupabaseClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       auth: {
         persistSession: false,

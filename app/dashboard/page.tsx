@@ -18,6 +18,11 @@ import { getActiveRoomRestrictions } from '@/app/actions/room-restrictions'
 
 async function getUpcomingReservations(userId: string) {
   const supabase = await createClient()
+  
+  // 한국 시간 기준 현재 시간을 UTC로 변환
+  const koreaNow = getKoreaDate()
+  const utcNow = new Date(koreaNow.getTime() - (9 * 60 * 60 * 1000))
+  
   const { data, error } = await supabase
     .from('reservations')
     .select(`
@@ -30,7 +35,7 @@ async function getUpcomingReservations(userId: string) {
     `)
     .eq('user_id', userId)
     .in('status', ['pending', 'confirmed'])
-    .gte('start_time', new Date(getKoreaDate().getTime() - (9 * 60 * 60 * 1000)).toISOString())
+    .gte('start_time', utcNow.toISOString())
     .order('start_time', { ascending: true })
     .limit(10)
 
@@ -39,7 +44,7 @@ async function getUpcomingReservations(userId: string) {
     return []
   }
 
-  return data || []
+  return Array.isArray(data) ? data : []
 }
 
 async function getRejectedReservations(userId: string) {
@@ -66,7 +71,7 @@ async function getRejectedReservations(userId: string) {
     return []
   }
 
-  return data
+  return data || []
 }
 
 function calculateDaysUntil(date: string | Date) {
@@ -94,9 +99,36 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
 
-  const upcomingReservations = await getUpcomingReservations(user.id)
-  const rejectedReservations = await getRejectedReservations(user.id)
-  const roomRestrictions = await getActiveRoomRestrictions()
+  // 안전하게 데이터 가져오기 (에러 발생 시 빈 배열 반환)
+  let upcomingReservations: any[] = []
+  let rejectedReservations: any[] = []
+  let roomRestrictions: any[] = []
+  
+  try {
+    upcomingReservations = await getUpcomingReservations(user.id)
+  } catch (error) {
+    console.error('Error fetching upcoming reservations:', error)
+    upcomingReservations = []
+  }
+  
+  try {
+    rejectedReservations = await getRejectedReservations(user.id)
+  } catch (error) {
+    console.error('Error fetching rejected reservations:', error)
+    rejectedReservations = []
+  }
+  
+  try {
+    const restrictions = await getActiveRoomRestrictions()
+    roomRestrictions = Array.isArray(restrictions) ? restrictions : []
+  } catch (error) {
+    console.error('Error fetching room restrictions:', error)
+    roomRestrictions = []
+  }
+  
+  // 배열이 아닌 경우 빈 배열로 변환 (이중 안전장치)
+  const safeUpcomingReservations = Array.isArray(upcomingReservations) ? upcomingReservations : []
+  const safeRejectedReservations = Array.isArray(rejectedReservations) ? rejectedReservations : []
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -208,7 +240,7 @@ export default async function DashboardPage() {
           <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
             다가오는 예약
           </h3>
-          {upcomingReservations.length === 0 ? (
+          {safeUpcomingReservations.length === 0 ? (
             <Card>
               <CardContent className="py-8 sm:py-12 text-center text-gray-500 text-sm sm:text-base">
                 예정된 예약이 없습니다.
@@ -216,7 +248,7 @@ export default async function DashboardPage() {
             </Card>
           ) : (
             <div className="space-y-3 sm:space-y-4">
-              {upcomingReservations.map((reservation: any) => {
+              {safeUpcomingReservations.map((reservation: any) => {
                 const daysUntil = calculateDaysUntil(reservation.start_time)
                 const room = reservation.rooms
 
@@ -279,13 +311,13 @@ export default async function DashboardPage() {
         </div>
 
         {/* 거부된 예약 섹션 */}
-        {rejectedReservations.length > 0 ? (
+        {safeRejectedReservations.length > 0 ? (
           <div className="mb-6 sm:mb-8">
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
               거부된 예약
             </h3>
             <div className="space-y-3 sm:space-y-4">
-              {rejectedReservations.map((reservation: any) => {
+              {safeRejectedReservations.map((reservation: any) => {
                 const room = reservation.rooms
 
                 return (

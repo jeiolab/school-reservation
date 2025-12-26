@@ -248,13 +248,13 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
                         사유: {reservation.purpose}
                       </div>
                     )}
-                    {reservation.attendees && 
-                     Array.isArray(reservation.attendees) && 
-                     reservation.attendees.length > 0 && (
-                      <div className="text-sm text-gray-600 mt-1">
-                        동반자: {reservation.attendees.join(', ')}
-                      </div>
-                    )}
+                    <div className="text-sm text-gray-600 mt-1">
+                      동반자: {reservation.attendees && 
+                               Array.isArray(reservation.attendees) && 
+                               reservation.attendees.length > 0 
+                                ? reservation.attendees.join(', ') 
+                                : '없음'}
+                    </div>
                   </div>
                 )
               })}

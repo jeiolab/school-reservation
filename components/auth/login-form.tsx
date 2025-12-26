@@ -42,8 +42,10 @@ export default function LoginForm() {
         if (user) {
           // 쿠키도 업데이트 (동기화)
           const maxAge = 604800 * 4 // 4주
-          document.cookie = `sb-access-token=${existingSession.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`
-          document.cookie = `sb-refresh-token=${existingSession.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax`
+          const isProduction = process.env.NODE_ENV === 'production'
+          const secureFlag = isProduction ? '; Secure' : ''
+          document.cookie = `sb-access-token=${existingSession.access_token}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`
+          document.cookie = `sb-refresh-token=${existingSession.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax${secureFlag}`
           window.location.href = '/dashboard'
           return
         }
@@ -123,8 +125,10 @@ export default function LoginForm() {
       if (data.session) {
         // 세션을 쿠키에 저장
         const maxAge = autoLogin ? 604800 * 4 : 3600 // 자동로그인: 4주, 일반: 1시간
-        document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`
-        document.cookie = `sb-refresh-token=${data.session.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax`
+        const isProduction = process.env.NODE_ENV === 'production'
+        const secureFlag = isProduction ? '; Secure' : ''
+        document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`
+        document.cookie = `sb-refresh-token=${data.session.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax${secureFlag}`
 
         // 로그인 정보 저장 설정
         if (rememberMe) {

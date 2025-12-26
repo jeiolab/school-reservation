@@ -19,7 +19,7 @@ const teacherSignupSchema = z.object({
 // 교직원 인증 코드
 // 환경 변수 NEXT_PUBLIC_TEACHER_VERIFICATION_CODE를 .env.local 파일에 설정하세요
 const TEACHER_VERIFICATION_CODE = 
-  process.env.NEXT_PUBLIC_TEACHER_VERIFICATION_CODE || ''
+  (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_TEACHER_VERIFICATION_CODE : '') || ''
 
 export default function TeacherSignupForm() {
   const router = useRouter()
@@ -110,8 +110,10 @@ export default function TeacherSignupForm() {
       if (authData.session) {
         // 이메일 확인이 비활성화된 경우 - 세션을 쿠키에 저장하고 바로 로그인
         const maxAge = 604800 * 4 // 4주
-        document.cookie = `sb-access-token=${authData.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`
-        document.cookie = `sb-refresh-token=${authData.session.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax`
+        const isProduction = process.env.NODE_ENV === 'production'
+        const secureFlag = isProduction ? '; Secure' : ''
+        document.cookie = `sb-access-token=${authData.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`
+        document.cookie = `sb-refresh-token=${authData.session.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax${secureFlag}`
         
         // 페이지 새로고침하여 서버에서 세션 인식
         window.location.href = '/dashboard'

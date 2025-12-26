@@ -500,23 +500,27 @@ ADD COLUMN IF NOT EXISTS rejected_by UUID REFERENCES users(id) ON DELETE SET NUL
                           <p className="text-xs font-medium text-gray-500 mb-1">예약 사유</p>
                           <p className="text-xs sm:text-sm text-gray-700 line-clamp-2">{reservation.purpose}</p>
                         </div>
-                        {reservation.attendees && 
-                         Array.isArray(reservation.attendees) && 
-                         reservation.attendees.length > 0 && (
-                          <div className="pt-2 border-t">
-                            <div className="flex items-start gap-2">
-                              <Users className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-gray-500 mb-1">동반자 ({reservation.attendees.length}명)</p>
+                        <div className="pt-2 border-t">
+                          <div className="flex items-start gap-2">
+                            <Users className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-500 mb-1">
+                                동반자 {reservation.attendees && Array.isArray(reservation.attendees) && reservation.attendees.length > 0 
+                                  ? `(${reservation.attendees.length}명)` 
+                                  : '(없음)'}
+                              </p>
+                              {reservation.attendees && 
+                               Array.isArray(reservation.attendees) && 
+                               reservation.attendees.length > 0 ? (
                                 <p className="text-xs sm:text-sm text-gray-700 break-words">
-                                  {Array.isArray(reservation.attendees) 
-                                    ? reservation.attendees.join(', ')
-                                    : String(reservation.attendees)}
+                                  {reservation.attendees.join(', ')}
                                 </p>
-                              </div>
+                              ) : (
+                                <p className="text-xs sm:text-sm text-gray-400 italic">동반자 없음</p>
+                              )}
                             </div>
                           </div>
-                        )}
+                        </div>
                         {reservation.status === 'rejected' && (
                           <div className="pt-2 border-t">
                             <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-md">

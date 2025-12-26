@@ -16,11 +16,11 @@ import RoomSelection from './room-selection'
 import DateTimeSelection from './date-time-selection'
 
 const bookingSchema = z.object({
-  roomId: z.string().min(1, '실을 선택해주세요'),
+  roomId: z.string().min(1, '실을 선택해주세요').max(100, '실 ID가 너무 깁니다'),
   startTime: z.string().min(1, '시작 시간을 선택해주세요'),
   endTime: z.string().min(1, '종료 시간을 선택해주세요'),
-  purpose: z.string().min(5, '예약 사유를 5자 이상 입력해주세요'),
-  attendees: z.string().optional(),
+  purpose: z.string().min(5, '예약 사유를 5자 이상 입력해주세요').max(500, '예약 사유는 500자 이하여야 합니다'),
+  attendees: z.string().max(1000, '동반자 정보가 너무 깁니다').optional(),
 })
 
 type BookingFormData = z.infer<typeof bookingSchema>
@@ -141,7 +141,7 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
         // 두 시간 범위가 겹치는 조건: start_time < reservation.end_time AND end_time > reservation.start_time
         const { data: allReservations, error: checkError } = await supabase
           .from('reservations')
-          .select('id, start_time, end_time')
+          .select('id, start_time, end_time, status')
           .eq('room_id', reservation.room_id)
           .in('status', ['pending', 'confirmed'])
 
@@ -150,7 +150,7 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
           // 쿼리 오류가 발생해도 데이터베이스 트리거가 최종 방어선이므로 계속 진행
         } else if (allReservations) {
           // 클라이언트 측에서 겹침 체크
-          const hasConflict = allReservations.some(existing => {
+          const conflictingReservation = allReservations.find(existing => {
             const existingStart = new Date(existing.start_time)
             const existingEnd = new Date(existing.end_time)
             const newStart = new Date(reservation.start_time)
@@ -160,8 +160,13 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
             return existingStart < newEnd && existingEnd > newStart
           })
 
-          if (hasConflict) {
-            setError('해당 시간대에 이미 예약이 존재합니다. 다른 시간을 선택해주세요.')
+          if (conflictingReservation) {
+            // pending 상태인 경우와 confirmed 상태인 경우를 구분하여 메시지 표시
+            if (conflictingReservation.status === 'pending') {
+              setError('해당 시간대에 예약 대기중입니다. 다른 시간을 선택해주세요.')
+            } else {
+              setError('해당 시간대에 이미 예약이 존재합니다. 다른 시간을 선택해주세요.')
+            }
             setLoading(false)
             // 시간 선택 단계로 돌아가서 예약된 시간대를 다시 불러오기
             setStep(2)
@@ -178,9 +183,45 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
 
       if (insertError) {
         // Check if it's a double booking error
-        if (insertError.message.includes('이미 예약이 존재합니다') || insertError.message.includes('사용금지')) {
-          setError('해당 시간대에 이미 예약이 존재하거나 사용금지 시간입니다. 다른 시간을 선택해주세요.')
-          // 시간 선택 단계로 돌아가서 예약된 시간대를 다시 불러오기
+        if (insertError.message.includes('이미 예약이 존재합니다')) {
+          // 데이터베이스 트리거에서 발생한 오류인 경우, pending 상태인지 확인하기 위해 다시 조회
+          // 겹치는 예약을 찾기 위해 시간 범위 체크
+          for (const reservation of reservations) {
+            const { data: conflictingReservations } = await supabase
+              .from('reservations')
+              .select('status, start_time, end_time')
+              .eq('room_id', reservation.room_id)
+              .in('status', ['pending', 'confirmed'])
+            
+            if (conflictingReservations) {
+              const conflicting = conflictingReservations.find(existing => {
+                const existingStart = new Date(existing.start_time)
+                const existingEnd = new Date(existing.end_time)
+                const newStart = new Date(reservation.start_time)
+                const newEnd = new Date(reservation.end_time)
+                return existingStart < newEnd && existingEnd > newStart
+              })
+              
+              if (conflicting) {
+                if (conflicting.status === 'pending') {
+                  setError('해당 시간대에 예약 대기중입니다. 다른 시간을 선택해주세요.')
+                } else {
+                  setError('해당 시간대에 이미 예약이 존재합니다. 다른 시간을 선택해주세요.')
+                }
+                setStep(2)
+                setRefreshTrigger(prev => prev + 1)
+                setLoading(false)
+                return
+              }
+            }
+          }
+          
+          // 위에서 찾지 못한 경우 기본 메시지
+          setError('해당 시간대에 이미 예약이 존재합니다. 다른 시간을 선택해주세요.')
+          setStep(2)
+          setRefreshTrigger(prev => prev + 1)
+        } else if (insertError.message.includes('사용금지')) {
+          setError('해당 시간대는 사용금지 시간입니다. 다른 시간을 선택해주세요.')
           setStep(2)
           setRefreshTrigger(prev => prev + 1)
         } else {

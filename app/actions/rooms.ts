@@ -5,12 +5,12 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 const createRoomSchema = z.object({
-  name: z.string().min(1, '실 이름을 입력해주세요'),
-  capacity: z.number().min(1, '수용 인원은 1명 이상이어야 합니다'),
-  location: z.string().min(1, '위치를 입력해주세요'),
-  facilities: z.array(z.string()).optional(),
-  restricted_hours: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
+  name: z.string().min(1, '실 이름을 입력해주세요').max(100, '실 이름이 너무 깁니다'),
+  capacity: z.number().min(1, '수용 인원은 1명 이상이어야 합니다').max(1000, '수용 인원이 너무 많습니다'),
+  location: z.string().min(1, '위치를 입력해주세요').max(200, '위치 정보가 너무 깁니다'),
+  facilities: z.array(z.string().max(100)).optional(),
+  restricted_hours: z.string().max(500).optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
   is_available: z.boolean().optional().default(true),
 })
 

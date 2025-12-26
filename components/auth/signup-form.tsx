@@ -10,9 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { z } from 'zod'
 
 const signupSchema = z.object({
-  email: z.string().email('올바른 이메일 주소를 입력해주세요'),
-  password: z.string().min(6, '비밀번호는 최소 6자 이상이어야 합니다'),
-  name: z.string().min(2, '이름을 입력해주세요'),
+  email: z.string().email('올바른 이메일 주소를 입력해주세요').max(255, '이메일이 너무 깁니다'),
+  password: z.string()
+    .min(6, '비밀번호는 최소 6자 이상이어야 합니다')
+    .max(128, '비밀번호가 너무 깁니다')
+    .regex(/[A-Za-z]/, '비밀번호에 영문자가 포함되어야 합니다')
+    .regex(/[0-9]/, '비밀번호에 숫자가 포함되어야 합니다'),
+  name: z.string().min(2, '이름을 입력해주세요').max(50, '이름이 너무 깁니다'),
   studentId: z.string().length(4, '학번은 4자리여야 합니다').regex(/^\d{4}$/, '학번은 숫자 4자리여야 합니다'),
 })
 
@@ -147,8 +151,10 @@ export default function SignupForm() {
       if (authData.session) {
         // 이메일 확인이 비활성화된 경우 - 세션을 쿠키에 저장하고 바로 로그인
         const maxAge = 604800 * 4 // 4주
-        document.cookie = `sb-access-token=${authData.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`
-        document.cookie = `sb-refresh-token=${authData.session.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax`
+        const isProduction = process.env.NODE_ENV === 'production'
+        const secureFlag = isProduction ? '; Secure' : ''
+        document.cookie = `sb-access-token=${authData.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`
+        document.cookie = `sb-refresh-token=${authData.session.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax${secureFlag}`
         
         // 페이지 새로고침하여 서버에서 세션 인식
         window.location.href = '/dashboard'
