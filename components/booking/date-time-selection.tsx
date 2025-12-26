@@ -96,6 +96,14 @@ export default function DateTimeSelection({
         .eq('status', 'confirmed') // 확정된 예약만 가져오기
         .lt('start_time', utcEnd.toISOString())
         .gt('end_time', utcStart.toISOString())
+      
+      console.log('Fetching confirmed reservations:', {
+        roomId,
+        selectedDate,
+        utcStart: utcStart.toISOString(),
+        utcEnd: utcEnd.toISOString(),
+        dataCount: data?.length || 0
+      })
 
       if (error) {
         console.error('Error fetching booked slots:', error)
@@ -110,33 +118,48 @@ export default function DateTimeSelection({
               const start = toKoreaTime(reservation.start_time)
               const end = toKoreaTime(reservation.end_time)
               
-              // 선택한 날짜의 시작과 끝 시간
-              const selectedDateStart = new Date(selectedDate + 'T00:00:00+09:00')
-              const selectedDateEnd = new Date(selectedDate + 'T23:59:59+09:00')
+              // 예약의 날짜 부분 추출 (yyyy-MM-dd)
+              const reservationStartDate = format(start, 'yyyy-MM-dd')
+              const reservationEndDate = format(end, 'yyyy-MM-dd')
               
-              // 예약이 선택한 날짜와 겹치는 부분만 비활성화
-              const overlapStart = start > selectedDateStart ? start : selectedDateStart
-              const overlapEnd = end < selectedDateEnd ? end : selectedDateEnd
+              console.log(`Processing reservation: ${format(start, 'yyyy-MM-dd HH:mm')} - ${format(end, 'yyyy-MM-dd HH:mm')}, selectedDate: ${selectedDate}`)
               
-              // 겹치는 시간 범위가 있는 경우에만 비활성화
-              if (overlapStart < overlapEnd) {
-                let current = new Date(overlapStart)
+              // 예약이 선택한 날짜와 겹치는지 확인
+              if (reservationStartDate === selectedDate || reservationEndDate === selectedDate || 
+                  (reservationStartDate < selectedDate && reservationEndDate > selectedDate)) {
                 
-                // 겹치는 시간 범위의 모든 30분 단위 시간 슬롯을 비활성화
-                while (current <= overlapEnd) {
-                  // 선택한 날짜와 같은 날인 경우에만 추가
-                  if (isSameDay(current, selectedDateStart)) {
+                // 선택한 날짜의 시작과 끝 시간
+                const selectedDateStart = new Date(selectedDate + 'T00:00:00+09:00')
+                const selectedDateEnd = new Date(selectedDate + 'T23:59:59+09:00')
+                
+                // 예약이 선택한 날짜와 겹치는 부분만 비활성화
+                const overlapStart = start > selectedDateStart ? start : selectedDateStart
+                const overlapEnd = end < selectedDateEnd ? end : selectedDateEnd
+                
+                // 겹치는 시간 범위가 있는 경우에만 비활성화
+                if (overlapStart < overlapEnd) {
+                  let current = new Date(overlapStart)
+                  
+                  // 겹치는 시간 범위의 모든 30분 단위 시간 슬롯을 비활성화
+                  while (current < overlapEnd) {
                     const timeSlot = format(current, 'HH:mm')
                     booked.add(timeSlot)
                     console.log(`Disabling time slot: ${timeSlot} (reservation: ${format(start, 'HH:mm')} - ${format(end, 'HH:mm')})`)
+                    current = new Date(current.getTime() + 30 * 60 * 1000) // Add 30 minutes
                   }
-                  current = new Date(current.getTime() + 30 * 60 * 1000) // Add 30 minutes
+                  // 종료 시간도 비활성화 (예: 10:00-11:00 예약이면 11:00도 비활성화)
+                  const endTimeSlot = format(overlapEnd, 'HH:mm')
+                  if (overlapEnd <= selectedDateEnd) {
+                    booked.add(endTimeSlot)
+                    console.log(`Disabling end time slot: ${endTimeSlot}`)
+                  }
                 }
               }
             }
           })
         }
-        console.log(`Total booked slots: ${booked.size}`, Array.from(booked))
+        console.log(`Total booked slots: ${booked.size}`, Array.from(booked).sort())
+        console.log('Setting bookedSlots state:', booked)
         setBookedSlots(booked)
       }
 
@@ -264,7 +287,11 @@ export default function DateTimeSelection({
   }, [roomId, selectedDate, refreshTrigger])
 
   const isSlotBooked = (slot: string) => {
-    return bookedSlots.has(slot)
+    const isBooked = bookedSlots.has(slot)
+    if (isBooked) {
+      console.log(`Slot ${slot} is booked (in bookedSlots)`)
+    }
+    return isBooked
   }
 
   const isSlotRestricted = (slot: string) => {
@@ -411,6 +438,8 @@ export default function DateTimeSelection({
                   <Label className="text-sm sm:text-base">시작 시간 (21:30까지 선택 가능)</Label>
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-2">
                     {timeSlots.map((slot) => {
+                      const isBooked = isSlotBooked(slot)
+                      const isRestricted = isSlotRestricted(slot)
                       const disabled = isSlotDisabled(slot, true)
                       const selected = startTime === slot
 
@@ -422,6 +451,12 @@ export default function DateTimeSelection({
                           size="sm"
                           disabled={disabled}
                           onClick={() => {
+                            if (disabled) {
+                              if (isBooked) {
+                                alert('이미 예약 확정된 시간입니다.')
+                              }
+                              return
+                            }
                             setStartTime(slot)
                             if (endTime && slot >= endTime) {
                               setEndTime('')
@@ -430,8 +465,8 @@ export default function DateTimeSelection({
                           className={cn(
                             'text-xs sm:text-sm py-2 sm:py-2.5',
                             disabled && 'opacity-50 cursor-not-allowed',
-                            isSlotBooked(slot) && 'bg-red-100 border-red-300',
-                            isSlotRestricted(slot) && 'bg-orange-100 border-orange-300'
+                            isBooked && 'bg-red-100 border-red-300 text-red-800 font-semibold',
+                            isRestricted && 'bg-orange-100 border-orange-300'
                           )}
                         >
                           {slot}
@@ -468,11 +503,14 @@ export default function DateTimeSelection({
                         const startDateTime = setMinutes(setHours(new Date(), startHour), startMinute)
                         const slotDateTime = setMinutes(setHours(new Date(), slotHour), slotMinute)
 
+                        const isBooked = isSlotBooked(slot)
+                        const isRestricted = isSlotRestricted(slot)
+                        
                         // 종료 시간은 시작 시간보다 늦어야 함
                         // 한국 시간 기준으로 지난 시간 체크
                         const disabled: boolean =
                           slotDateTime <= startDateTime ||
-                          isSlotBooked(slot) ||
+                          isBooked ||
                           (startTime ? slot <= startTime : false) ||
                           isSlotDisabled(slot, false) ||
                           (selectedDate ? isPastTime(slot, selectedDate) : false)
@@ -486,11 +524,20 @@ export default function DateTimeSelection({
                             variant={selected ? 'default' : 'outline'}
                             size="sm"
                             disabled={disabled}
-                            onClick={() => setEndTime(slot)}
+                            onClick={() => {
+                              if (disabled) {
+                                if (isBooked) {
+                                  alert('이미 예약 확정된 시간입니다.')
+                                }
+                                return
+                              }
+                              setEndTime(slot)
+                            }}
                             className={cn(
-                              disabled ? 'opacity-50 cursor-not-allowed' : '',
-                              isSlotBooked(slot) ? 'bg-red-100 border-red-300' : '',
-                              isSlotRestricted(slot) ? 'bg-orange-100 border-orange-300' : ''
+                              'text-xs sm:text-sm py-2 sm:py-2.5',
+                              disabled && 'opacity-50 cursor-not-allowed',
+                              isBooked && 'bg-red-100 border-red-300 text-red-800 font-semibold',
+                              isRestricted && 'bg-orange-100 border-orange-300'
                             )}
                           >
                             {slot}
