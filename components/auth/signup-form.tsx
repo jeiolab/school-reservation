@@ -143,7 +143,9 @@ export default function SignupForm() {
 
       if (insertError) {
         console.error('Error inserting user:', insertError)
-        // 사용자 정보 저장 실패 시에도 계속 진행 (나중에 수정 가능)
+        setError(`사용자 정보 저장 중 오류가 발생했습니다: ${insertError.message}`)
+        setLoading(false)
+        return
       }
 
       // 3. 이메일 확인이 비활성화된 경우 자동 로그인
