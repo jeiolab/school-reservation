@@ -100,7 +100,21 @@ export default function TeacherSignupForm() {
 
       if (insertError) {
         console.error('Error inserting user:', insertError)
-        setError('사용자 정보 저장 중 오류가 발생했습니다.')
+        console.error('Error details:', {
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+        })
+        
+        // RLS 정책 오류인 경우 특별한 메시지 표시
+        if (insertError.code === '42501' || insertError.message?.includes('policy') || insertError.message?.includes('permission')) {
+          setError(`데이터베이스 권한 오류: 관리자에게 문의하여 Supabase에서 'Users can insert their own profile' 정책이 설정되었는지 확인해주세요. 오류 코드: ${insertError.code}`)
+        } else if (insertError.code === '23505') {
+          setError('이미 존재하는 이메일 또는 사용자입니다.')
+        } else {
+          setError(`사용자 정보 저장 중 오류가 발생했습니다: ${insertError.message} (코드: ${insertError.code || 'N/A'})`)
+        }
         setLoading(false)
         return
       }
