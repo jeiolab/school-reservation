@@ -8,8 +8,14 @@
 -- which includes CREATE TYPE statements. This migration script should be
 -- run separately, after the initial schema is set up.
 
--- Step 1: Create a mapping table to store old bigint id -> new UUID id
-CREATE TABLE IF NOT EXISTS rooms_id_mapping (
+-- Step 1: Clean up any previous migration attempts
+-- Drop existing mapping and backup tables if they exist
+DROP TABLE IF EXISTS rooms_id_mapping CASCADE;
+DROP TABLE IF EXISTS rooms_backup CASCADE;
+DROP TABLE IF EXISTS rooms_new CASCADE;
+
+-- Create a mapping table to store old bigint id -> new UUID id
+CREATE TABLE rooms_id_mapping (
   old_id BIGINT PRIMARY KEY,
   new_id UUID NOT NULL,
   room_name TEXT NOT NULL,
@@ -17,11 +23,11 @@ CREATE TABLE IF NOT EXISTS rooms_id_mapping (
 );
 
 -- Step 2: Backup existing rooms data
-CREATE TABLE IF NOT EXISTS rooms_backup AS 
+CREATE TABLE rooms_backup AS 
 SELECT * FROM rooms;
 
 -- Step 3: Create new rooms table with UUID (temporary name)
-CREATE TABLE IF NOT EXISTS rooms_new (
+CREATE TABLE rooms_new (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   capacity INTEGER NOT NULL,
