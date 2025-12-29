@@ -104,10 +104,34 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reservations ENABLE ROW LEVEL SECURITY;
 
+-- Create SECURITY DEFINER function to check user role without triggering RLS recursion
+-- This function must be created before policies that use it
+CREATE OR REPLACE FUNCTION check_user_role(user_id UUID, allowed_roles user_role[])
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- SECURITY DEFINER allows this function to bypass RLS
+  RETURN EXISTS (
+    SELECT 1 FROM users
+    WHERE users.id = user_id
+    AND users.role = ANY(allowed_roles)
+  );
+END;
+$$;
+
 -- Users policies
 CREATE POLICY "Users can view their own profile"
   ON users FOR SELECT
   USING (auth.uid() = id);
+
+-- Allow admins and teachers to view all users (for admin dashboard)
+-- SECURITY DEFINER 함수를 사용하여 무한 재귀 방지
+CREATE POLICY "Admins can view all users"
+  ON users FOR SELECT
+  USING (check_user_role(auth.uid(), ARRAY['teacher', 'admin']::user_role[]));
 
 CREATE POLICY "Users can insert their own profile"
   ON users FOR INSERT
@@ -136,25 +160,14 @@ CREATE POLICY "Users can update their own pending reservations"
   USING (auth.uid() = user_id AND status = 'pending');
 
 -- Admin policies (teachers and admins can view all reservations)
+-- SECURITY DEFINER 함수를 사용하여 무한 재귀 방지
 CREATE POLICY "Admins can view all reservations"
   ON reservations FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id = auth.uid()
-      AND users.role IN ('teacher', 'admin')
-    )
-  );
+  USING (check_user_role(auth.uid(), ARRAY['teacher', 'admin']::user_role[]));
 
 CREATE POLICY "Admins can update reservation status"
   ON reservations FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id = auth.uid()
-      AND users.role IN ('teacher', 'admin')
-    )
-  );
+  USING (check_user_role(auth.uid(), ARRAY['teacher', 'admin']::user_role[]));
 
 -- Allow all authenticated users to view confirmed reservations
 -- This is necessary for the booking time selection to work properly
