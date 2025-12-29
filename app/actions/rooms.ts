@@ -116,6 +116,23 @@ export async function updateRoom(roomId: string, formData: FormData) {
       return { error: '권한이 없습니다. 교사 또는 관리자만 실을 수정할 수 있습니다.' }
     }
 
+    // UUID 형식 검증
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(roomId)) {
+      return { error: '잘못된 실 ID 형식입니다.' }
+    }
+
+    // 실 존재 여부 확인
+    const { data: existingRoom } = await supabase
+      .from('rooms')
+      .select('id')
+      .eq('id', roomId)
+      .single()
+
+    if (!existingRoom) {
+      return { error: '존재하지 않는 실입니다.' }
+    }
+
     // FormData에서 값 추출
     const name = formData.get('name') as string
     const capacityString = formData.get('capacity') as string
@@ -197,6 +214,23 @@ export async function deleteRoom(roomId: string) {
 
     if (!userProfile || (userProfile.role !== 'teacher' && userProfile.role !== 'admin')) {
       return { error: '권한이 없습니다. 교사 또는 관리자만 실을 삭제할 수 있습니다.' }
+    }
+
+    // UUID 형식 검증
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(roomId)) {
+      return { error: '잘못된 실 ID 형식입니다.' }
+    }
+
+    // 실 존재 여부 확인
+    const { data: existingRoom } = await supabase
+      .from('rooms')
+      .select('id')
+      .eq('id', roomId)
+      .single()
+
+    if (!existingRoom) {
+      return { error: '존재하지 않는 실입니다.' }
     }
 
     // 해당 실에 예약이 있는지 확인

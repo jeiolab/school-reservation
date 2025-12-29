@@ -166,6 +166,13 @@ export default function AdminDashboard() {
     status: 'confirmed' | 'rejected',
     reason?: string
   ) => {
+    // UUID 형식 검증
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(reservationId)) {
+      alert('잘못된 예약 ID 형식입니다.')
+      return
+    }
+
     setUpdating(reservationId)
     const supabase = createClient()
 
@@ -173,6 +180,32 @@ export default function AdminDashboard() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       alert('로그인이 필요합니다.')
+      setUpdating(null)
+      return
+    }
+
+    // 권한 확인: teacher 또는 admin만 승인/거부 가능
+    const { data: userProfile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!userProfile || (userProfile.role !== 'teacher' && userProfile.role !== 'admin')) {
+      alert('권한이 없습니다. 교사 또는 관리자만 예약을 승인/거부할 수 있습니다.')
+      setUpdating(null)
+      return
+    }
+
+    // 예약 존재 여부 및 접근 권한 확인
+    const { data: reservation } = await supabase
+      .from('reservations')
+      .select('id, user_id')
+      .eq('id', reservationId)
+      .single()
+
+    if (!reservation) {
+      alert('존재하지 않는 예약입니다.')
       setUpdating(null)
       return
     }
@@ -335,8 +368,49 @@ ADD COLUMN IF NOT EXISTS rejected_by UUID REFERENCES users(id) ON DELETE SET NUL
   }, [fetchReservations])
 
   const deleteReservation = useCallback(async (reservationId: string) => {
+    // UUID 형식 검증
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(reservationId)) {
+      alert('잘못된 예약 ID 형식입니다.')
+      return
+    }
+
     setUpdating(reservationId)
     const supabase = createClient()
+
+    // 현재 사용자 정보 가져오기
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      alert('로그인이 필요합니다.')
+      setUpdating(null)
+      return
+    }
+
+    // 권한 확인: teacher 또는 admin만 삭제 가능
+    const { data: userProfile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!userProfile || (userProfile.role !== 'teacher' && userProfile.role !== 'admin')) {
+      alert('권한이 없습니다. 교사 또는 관리자만 예약을 삭제할 수 있습니다.')
+      setUpdating(null)
+      return
+    }
+
+    // 예약 존재 여부 확인
+    const { data: reservation } = await supabase
+      .from('reservations')
+      .select('id')
+      .eq('id', reservationId)
+      .single()
+
+    if (!reservation) {
+      alert('존재하지 않는 예약입니다.')
+      setUpdating(null)
+      return
+    }
 
     const { error } = await supabase
       .from('reservations')

@@ -31,6 +31,23 @@ export async function createRoomRestriction(formData: FormData) {
       return { error: '모든 필드를 입력해주세요.' }
     }
 
+    // UUID 형식 검증
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(roomId)) {
+      return { error: '잘못된 실 ID 형식입니다.' }
+    }
+
+    // 실 존재 여부 확인
+    const { data: existingRoom } = await supabase
+      .from('rooms')
+      .select('id')
+      .eq('id', roomId)
+      .single()
+
+    if (!existingRoom) {
+      return { error: '존재하지 않는 실입니다.' }
+    }
+
     // 기존 활성화된 제한이 있으면 비활성화
     const { data: existingRestriction } = await supabase
       .from('room_restrictions')
