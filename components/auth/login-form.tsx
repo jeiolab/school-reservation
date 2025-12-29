@@ -125,7 +125,18 @@ export default function LoginForm() {
       })
 
       if (signInError) {
-        setError(signInError.message)
+        // 한국어로 더 명확한 오류 메시지 제공
+        let errorMessage = signInError.message
+        if (signInError.message.includes('Invalid login credentials') || signInError.message.includes('invalid_credentials')) {
+          errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.'
+        } else if (signInError.message.includes('Email not confirmed')) {
+          errorMessage = '이메일 인증이 완료되지 않았습니다. 이메일을 확인해주세요.'
+        } else if (signInError.message.includes('User not found')) {
+          errorMessage = '등록되지 않은 이메일입니다.'
+        } else if (signInError.message.includes('Too many requests')) {
+          errorMessage = '너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.'
+        }
+        setError(errorMessage)
         setLoading(false)
         return
       }
