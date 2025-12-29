@@ -1,6 +1,12 @@
 -- Safe migration: Fix rooms table id column from bigint to UUID
 -- This script preserves existing reservations by creating a mapping table
 -- Run this in Supabase SQL Editor
+--
+-- IMPORTANT: This script does NOT create enum types or extensions.
+-- Make sure user_role and reservation_status enum types already exist.
+-- If you get "type already exists" errors, you may be running schema.sql
+-- which includes CREATE TYPE statements. This migration script should be
+-- run separately, after the initial schema is set up.
 
 -- Step 1: Create a mapping table to store old bigint id -> new UUID id
 CREATE TABLE IF NOT EXISTS rooms_id_mapping (
