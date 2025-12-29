@@ -120,13 +120,30 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
       }
 
       // Create reservations for all dates
+      // UUID 형식 검증 및 명시적 변환
+      const userIdString = String(userId).trim()
+      const roomIdString = String(validatedData.roomId).trim()
+      
+      // UUID 형식 검증 (간단한 체크)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!uuidRegex.test(userIdString)) {
+        setError('사용자 ID 형식이 올바르지 않습니다.')
+        setLoading(false)
+        return
+      }
+      if (!uuidRegex.test(roomIdString)) {
+        setError('실 ID 형식이 올바르지 않습니다.')
+        setLoading(false)
+        return
+      }
+      
       const reservations = reservationDates.map(date => {
         const startTime = new Date(date)
         const endTime = new Date(date.getTime() + timeDiff)
         
         return {
-          user_id: userId, // UUID 타입으로 전달
-          room_id: validatedData.roomId, // UUID 타입으로 전달
+          user_id: userIdString, // 명시적으로 문자열로 변환
+          room_id: roomIdString, // 명시적으로 문자열로 변환
           start_time: startTime.toISOString(),
           end_time: endTime.toISOString(),
           purpose: validatedData.purpose,
