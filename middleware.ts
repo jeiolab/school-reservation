@@ -71,13 +71,15 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Redirect authenticated users away from login/signup pages
-  if (
-    (request.nextUrl.pathname.startsWith('/login') || 
-     request.nextUrl.pathname.startsWith('/signup')) && 
-    user
-  ) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+  // Redirect authenticated users away from login/signup pages and home page
+  if (user) {
+    if (
+      request.nextUrl.pathname === '/' ||
+      request.nextUrl.pathname.startsWith('/login') || 
+      request.nextUrl.pathname.startsWith('/signup')
+    ) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
   }
 
   return response

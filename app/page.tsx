@@ -1,21 +1,12 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
 import Link from 'next/link'
 import { Calendar, Clock, Users, ArrowRight } from 'lucide-react'
-import AutoLoginCheck from '@/components/auth/auto-login-check'
 
 export default async function HomePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (user) {
-    redirect('/dashboard')
-  }
+  // 리디렉션은 middleware에서 처리하므로 여기서는 제거
+  // 무한 리디렉션 방지
 
   return (
-    <>
-      <AutoLoginCheck />
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <div className="container mx-auto px-4 sm:px-6 py-8 sm:py-12 md:py-16">
         <div className="max-w-4xl mx-auto text-center">
           {/* Hero Section */}
@@ -84,7 +75,6 @@ export default async function HomePage() {
         </div>
       </div>
     </div>
-    </>
   )
 }
 
