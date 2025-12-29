@@ -114,10 +114,11 @@ SET search_path = public
 AS $$
 BEGIN
   -- SECURITY DEFINER allows this function to bypass RLS
+  -- Explicitly cast role to user_role enum type to avoid type mismatch
   RETURN EXISTS (
     SELECT 1 FROM users
     WHERE users.id = user_id
-    AND users.role = ANY(allowed_roles)
+    AND users.role::text = ANY(SELECT unnest(allowed_roles)::text)
   );
 END;
 $$;
