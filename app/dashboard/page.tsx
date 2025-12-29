@@ -124,18 +124,9 @@ export default async function DashboardPage() {
         hint: firstError.hint,
         userId: user.id
       })
+      profileError = firstError
       
-      // 세션을 새로고침하고 재시도 (에러 처리 포함)
-      try {
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
-        if (refreshError) {
-          console.warn('Session refresh error (non-critical):', refreshError)
-        }
-      } catch (refreshErr) {
-        console.warn('Session refresh exception (non-critical):', refreshErr)
-      }
-      
-      // 두 번째 시도
+      // 두 번째 시도 (세션 새로고침 없이)
       const retryResult = await supabase
         .from('users')
         .select('*')
