@@ -9,8 +9,9 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
   user_name TEXT;
-  user_role user_role;
+  user_role_text TEXT;
   user_student_id TEXT;
+  final_role user_role;
 BEGIN
   -- metadata에서 정보 추출 (안전하게)
   user_name := COALESCE(
@@ -18,12 +19,24 @@ BEGIN
     SPLIT_PART(NEW.email, '@', 1) -- 이메일에서 이름 추출 (fallback)
   );
   
+  -- name이 여전히 비어있으면 기본값 사용
+  IF user_name IS NULL OR user_name = '' THEN
+    user_name := '사용자';
+  END IF;
+  
   -- role 추출 (안전하게)
+  user_role_text := NEW.raw_user_meta_data->>'role';
+  
+  -- role을 user_role enum으로 변환 (안전하게)
   BEGIN
-    user_role := (NEW.raw_user_meta_data->>'role')::user_role;
+    IF user_role_text IS NULL OR user_role_text = '' THEN
+      final_role := 'student';
+    ELSE
+      final_role := user_role_text::user_role;
+    END IF;
   EXCEPTION
     WHEN OTHERS THEN
-      user_role := 'student'; -- 기본값
+      final_role := 'student'; -- 기본값
   END;
   
   -- student_id 추출
@@ -36,7 +49,7 @@ BEGIN
     NEW.id,
     NEW.email,
     user_name,
-    COALESCE(user_role, 'student'),
+    final_role,
     user_student_id
   )
   ON CONFLICT (id) DO NOTHING; -- 이미 존재하면 무시
