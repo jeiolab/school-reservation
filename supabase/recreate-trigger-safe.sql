@@ -1,10 +1,15 @@
 -- ============================================
--- 자동 사용자 프로필 생성 트리거
+-- 안전한 트리거 재생성
 -- ============================================
--- auth.users에 사용자가 생성되면 자동으로 public.users에 프로필을 생성합니다
--- 이렇게 하면 RLS 정책 문제를 완전히 우회할 수 있습니다
+-- 기존 트리거를 삭제하고 개선된 버전으로 재생성합니다
 
--- 1. 함수 생성: 새 사용자 프로필 자동 생성
+-- 1단계: 기존 트리거 삭제
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- 2단계: 기존 함수 삭제
+DROP FUNCTION IF EXISTS public.handle_new_user();
+
+-- 3단계: 개선된 함수 생성 (오류 처리 포함)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -17,6 +22,11 @@ BEGIN
     NEW.raw_user_meta_data->>'name',
     SPLIT_PART(NEW.email, '@', 1) -- 이메일에서 이름 추출 (fallback)
   );
+  
+  -- name이 여전히 비어있으면 기본값 사용
+  IF user_name IS NULL OR user_name = '' THEN
+    user_name := '사용자';
+  END IF;
   
   -- role 추출 (안전하게)
   BEGIN
@@ -45,23 +55,29 @@ BEGIN
 EXCEPTION
   WHEN OTHERS THEN
     -- 오류 발생 시 로그만 남기고 계속 진행 (auth.users 생성은 성공)
-    RAISE WARNING 'Error creating user profile: %', SQLERRM;
+    RAISE WARNING 'Error creating user profile for user %: %', NEW.id, SQLERRM;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 2. 트리거 생성: auth.users에 INSERT 시 자동 실행
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-
+-- 4단계: 트리거 재생성
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
 
--- 3. 확인 메시지
+-- 5단계: 확인
+SELECT 
+  trigger_name,
+  event_manipulation,
+  action_timing
+FROM information_schema.triggers
+WHERE event_object_table = 'users' 
+  AND trigger_schema = 'auth';
+
+-- 성공 메시지
 DO $$
 BEGIN
-  RAISE NOTICE '✅ 자동 사용자 프로필 생성 트리거가 생성되었습니다!';
-  RAISE NOTICE '이제 회원가입 시 자동으로 public.users에 프로필이 생성됩니다.';
+  RAISE NOTICE '✅ 안전한 트리거가 성공적으로 재생성되었습니다!';
 END $$;
 
