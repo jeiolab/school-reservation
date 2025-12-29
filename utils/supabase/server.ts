@@ -38,7 +38,14 @@ export async function createClient() {
     // 세션이 유효하지 않으면 쿠키 삭제
     if (error || !data.session) {
       // 세션이 만료되었거나 유효하지 않음
+      console.warn('Session invalid or expired:', error)
       return supabase
+    }
+    
+    // 세션 설정 후 명시적으로 사용자 정보 확인
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError) {
+      console.warn('Error getting user after setting session:', userError)
     }
   }
 

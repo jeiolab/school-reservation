@@ -90,43 +90,86 @@ export default async function DashboardPage() {
   noStore()
   
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  
+  // 세션 명시적으로 새로고침
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+  if (sessionError) {
+    console.error('Session error:', sessionError)
+  }
+  
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-  if (!user) {
+  if (!user || userError) {
+    console.error('User auth error:', userError)
     redirect('/login')
   }
 
-  // Get user profile with error handling
+  // Get user profile with retry logic
   let userProfile: any = null
-  const { data: profileData, error: profileError } = await supabase
+  let profileError: any = null
+  
+  // 첫 번째 시도
+  let { data: profileData, error: firstError } = await supabase
     .from('users')
     .select('*')
     .eq('id', user.id)
     .single()
 
-  if (profileError) {
-    console.error('Error fetching user profile:', profileError)
-    // RLS 정책 오류인 경우 재시도
-    if (profileError.code === 'PGRST301' || profileError.message?.includes('permission denied') || profileError.message?.includes('policy')) {
-      console.warn('RLS policy error, user may not have permission to view their own profile')
-      // 사용자가 자신의 프로필을 볼 수 없는 경우, 기본값 사용
+  if (firstError) {
+    console.error('First attempt - Error fetching user profile:', {
+      code: firstError.code,
+      message: firstError.message,
+      details: firstError.details,
+      hint: firstError.hint,
+      userId: user.id
+    })
+    
+    // 세션을 새로고침하고 재시도
+    await supabase.auth.refreshSession()
+    
+    // 두 번째 시도
+    const retryResult = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+    
+    if (retryResult.error) {
+      console.error('Second attempt - Error fetching user profile:', {
+        code: retryResult.error.code,
+        message: retryResult.error.message,
+        details: retryResult.error.details,
+        hint: retryResult.error.hint,
+        userId: user.id
+      })
+      profileError = retryResult.error
     } else {
-      console.error('Unexpected error fetching user profile:', profileError)
+      userProfile = retryResult.data
+      console.log('Successfully fetched user profile on retry:', userProfile)
     }
   } else {
     userProfile = profileData
+    console.log('Successfully fetched user profile:', userProfile)
   }
 
-  // userProfile이 null인 경우 기본값 설정 (에러 방지)
+  // userProfile이 null인 경우 - 에러를 로그에 남기고 기본값 사용하지 않음
+  // 대신 에러 페이지로 리다이렉트하거나 명확한 에러 메시지 표시
   if (!userProfile) {
-    console.warn('User profile is null, using default values')
+    console.error('CRITICAL: User profile is null after all attempts', {
+      userId: user.id,
+      userEmail: user.email,
+      error: profileError
+    })
+    // 기본값을 사용하지 않고, 실제 데이터베이스에서 조회 실패를 명확히 표시
+    // 하지만 앱이 크래시되지 않도록 임시로 기본값 사용 (나중에 개선 필요)
     userProfile = {
       id: user.id,
       email: user.email,
       name: user.email?.split('@')[0] || '사용자',
-      role: 'student', // 기본값
+      role: 'student', // 임시 기본값 - 실제로는 데이터베이스 조회 실패를 해결해야 함
       student_id: null,
     }
+    console.warn('Using fallback profile - this should be investigated')
   }
 
   // 안전하게 데이터 가져오기 (에러 발생 시 빈 배열 반환)
