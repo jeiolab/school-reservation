@@ -16,7 +16,6 @@ DECLARE
   user_name TEXT;
   user_role_text TEXT;
   user_student_id TEXT;
-  final_role user_role;
 BEGIN
   -- metadata에서 정보 추출 (안전하게)
   user_name := COALESCE(
@@ -32,32 +31,39 @@ BEGIN
   -- role 추출 (안전하게)
   user_role_text := NEW.raw_user_meta_data->>'role';
   
-  -- role을 user_role enum으로 변환 (안전하게)
-  BEGIN
-    IF user_role_text IS NULL OR user_role_text = '' THEN
-      final_role := 'student';
-    ELSE
-      final_role := user_role_text::user_role;
-    END IF;
-  EXCEPTION
-    WHEN OTHERS THEN
-      final_role := 'student'; -- 기본값
-  END;
+  -- role이 비어있거나 null이면 기본값 설정
+  IF user_role_text IS NULL OR user_role_text = '' THEN
+    user_role_text := 'student';
+  END IF;
   
   -- student_id 추출
   user_student_id := NULLIF(NEW.raw_user_meta_data->>'student_id', '');
   
   -- public.users 테이블에 사용자 프로필 생성
   -- 이 함수는 SECURITY DEFINER로 실행되므로 RLS를 우회합니다
-  INSERT INTO public.users (id, email, name, role, student_id)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    user_name,
-    final_role,
-    user_student_id
-  )
-  ON CONFLICT (id) DO NOTHING; -- 이미 존재하면 무시
+  BEGIN
+    INSERT INTO public.users (id, email, name, role, student_id)
+    VALUES (
+      NEW.id,
+      NEW.email,
+      user_name,
+      user_role_text::user_role, -- INSERT 시에만 캐스팅
+      user_student_id
+    )
+    ON CONFLICT (id) DO NOTHING; -- 이미 존재하면 무시
+  EXCEPTION
+    WHEN invalid_text_representation OR OTHERS THEN
+      -- role 캐스팅 실패 시 기본값으로 재시도
+      INSERT INTO public.users (id, email, name, role, student_id)
+      VALUES (
+        NEW.id,
+        NEW.email,
+        user_name,
+        'student'::user_role,
+        user_student_id
+      )
+      ON CONFLICT (id) DO NOTHING;
+  END;
   
   RETURN NEW;
 EXCEPTION
