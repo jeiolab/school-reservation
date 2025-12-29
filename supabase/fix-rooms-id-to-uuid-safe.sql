@@ -80,7 +80,11 @@ BEGIN
   END IF;
 END $$;
 
--- Step 7: Drop foreign key constraint for reservations
+-- Step 7: Drop triggers and foreign key constraint for reservations
+-- Drop the overlapping reservations trigger first to prevent type errors
+DROP TRIGGER IF EXISTS prevent_overlapping_reservations ON reservations;
+
+-- Drop foreign key constraint
 ALTER TABLE reservations 
 DROP CONSTRAINT IF EXISTS reservations_room_id_fkey;
 
@@ -108,6 +112,31 @@ ALTER TABLE reservations
 ADD CONSTRAINT reservations_room_id_fkey 
 FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE;
 
+-- Step 12a: Recreate check_overlapping_reservations function to work with UUID
+CREATE OR REPLACE FUNCTION check_overlapping_reservations()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM reservations
+    WHERE room_id = NEW.room_id::uuid
+      AND (NEW.id IS NULL OR id::uuid != NEW.id::uuid)
+      AND status IN ('pending', 'confirmed')
+      AND start_time < NEW.end_time
+      AND end_time > NEW.start_time
+  ) THEN
+    RAISE EXCEPTION '해당 시간대에 이미 예약이 존재합니다.';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Recreate the trigger
+CREATE TRIGGER prevent_overlapping_reservations
+BEFORE INSERT OR UPDATE ON reservations
+FOR EACH ROW
+WHEN (NEW.status IN ('pending', 'confirmed'))
+EXECUTE FUNCTION check_overlapping_reservations();
+
 -- Recreate room_restrictions foreign key if table exists
 DO $$
 BEGIN
@@ -123,25 +152,35 @@ CREATE INDEX IF NOT EXISTS idx_reservations_room_id ON reservations(room_id);
 
 -- Step 14: Recreate check_room_restrictions trigger function if it exists
 -- This function should work with UUID now
+-- Note: We need to check if table exists first, then create function outside DO block
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'room_restrictions') THEN
-    -- Recreate the trigger function to work with UUID
-    CREATE OR REPLACE FUNCTION check_room_restrictions()
-    RETURNS TRIGGER AS $$
-    BEGIN
-      IF EXISTS (
-        SELECT 1 FROM room_restrictions 
-        WHERE room_id = NEW.room_id::uuid 
-        AND is_active = true
-      ) THEN
-        RAISE EXCEPTION '해당 실에 활성화된 사용금지 공지가 있습니다.';
-      END IF;
-      RETURN NEW;
-    END;
-    $$ LANGUAGE plpgsql;
-    
-    -- Recreate the trigger
+    -- Drop existing function and trigger first
+    DROP FUNCTION IF EXISTS check_room_restrictions() CASCADE;
+  END IF;
+END $$;
+
+-- Recreate the trigger function to work with UUID (outside DO block)
+-- This will only work if room_restrictions table exists
+CREATE OR REPLACE FUNCTION check_room_restrictions()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM room_restrictions 
+    WHERE room_id = NEW.room_id::uuid 
+    AND is_active = true
+  ) THEN
+    RAISE EXCEPTION '해당 실에 활성화된 사용금지 공지가 있습니다.';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Recreate the trigger (only if room_restrictions table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'room_restrictions') THEN
     CREATE TRIGGER check_room_restrictions_trigger
     BEFORE INSERT OR UPDATE ON reservations
     FOR EACH ROW
