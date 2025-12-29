@@ -69,10 +69,17 @@ export default function TeacherSignupForm() {
 
       const supabase = createClient()
 
-      // 1. Supabase Auth로 회원가입
+      // 1. Supabase Auth로 회원가입 (metadata에 role 포함)
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: validatedData.email,
         password: validatedData.password,
+        options: {
+          data: {
+            name: validatedData.name,
+            role: 'teacher', // 교직원 역할을 metadata에 포함
+            student_id: null,
+          },
+        },
       })
 
       if (signUpError) {
@@ -88,35 +95,53 @@ export default function TeacherSignupForm() {
       }
 
       // 2. users 테이블에 교직원 정보 저장 (role: 'teacher')
-      const { error: insertError } = await supabase
+      // 트리거가 이미 실행되었을 수 있으므로 UPSERT 사용
+      const { error: upsertError } = await supabase
         .from('users')
-        .insert({
+        .upsert({
           id: authData.user.id,
           email: validatedData.email,
           name: validatedData.name,
           role: 'teacher', // 교직원 역할
           student_id: null, // 교직원은 학번 없음
+        }, {
+          onConflict: 'id'
         })
 
-      if (insertError) {
-        console.error('Error inserting user:', insertError)
+      if (upsertError) {
+        console.error('Error upserting user:', upsertError)
         console.error('Error details:', {
-          code: insertError.code,
-          message: insertError.message,
-          details: insertError.details,
-          hint: insertError.hint,
+          code: upsertError.code,
+          message: upsertError.message,
+          details: upsertError.details,
+          hint: upsertError.hint,
         })
         
         // RLS 정책 오류인 경우 특별한 메시지 표시
-        if (insertError.code === '42501' || insertError.message?.includes('policy') || insertError.message?.includes('permission')) {
-          setError(`데이터베이스 권한 오류: 관리자에게 문의하여 Supabase에서 'Users can insert their own profile' 정책이 설정되었는지 확인해주세요. 오류 코드: ${insertError.code}`)
-        } else if (insertError.code === '23505') {
-          setError('이미 존재하는 이메일 또는 사용자입니다.')
+        if (upsertError.code === '42501' || upsertError.message?.includes('policy') || upsertError.message?.includes('permission')) {
+          setError(`데이터베이스 권한 오류: 관리자에게 문의하여 Supabase에서 'Users can insert their own profile' 정책이 설정되었는지 확인해주세요. 오류 코드: ${upsertError.code}`)
+        } else if (upsertError.code === '23505') {
+          // 이미 존재하는 경우 UPDATE 시도
+          const { error: updateError } = await supabase
+            .from('users')
+            .update({
+              name: validatedData.name,
+              role: 'teacher',
+              student_id: null,
+            })
+            .eq('id', authData.user.id)
+          
+          if (updateError) {
+            console.error('Error updating user:', updateError)
+            setError(`사용자 정보 업데이트 중 오류가 발생했습니다: ${updateError.message} (코드: ${updateError.code || 'N/A'})`)
+            setLoading(false)
+            return
+          }
         } else {
-          setError(`사용자 정보 저장 중 오류가 발생했습니다: ${insertError.message} (코드: ${insertError.code || 'N/A'})`)
+          setError(`사용자 정보 저장 중 오류가 발생했습니다: ${upsertError.message} (코드: ${upsertError.code || 'N/A'})`)
+          setLoading(false)
+          return
         }
-        setLoading(false)
-        return
       }
 
       // 3. 이메일 확인이 비활성화된 경우 자동 로그인

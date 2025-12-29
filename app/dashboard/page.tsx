@@ -158,8 +158,20 @@ export default async function DashboardPage() {
     console.error('CRITICAL: User profile is null after all attempts', {
       userId: user.id,
       userEmail: user.email,
-      error: profileError
+      error: profileError,
+      errorCode: profileError?.code,
+      errorMessage: profileError?.message,
+      errorDetails: profileError?.details,
+      errorHint: profileError?.hint
     })
+    
+    // RLS 정책 오류인 경우 명확한 메시지 표시
+    if (profileError?.code === 'PGRST301' || profileError?.message?.includes('permission denied') || profileError?.message?.includes('policy')) {
+      console.error('RLS policy error detected - user may not have permission to view their own profile')
+      // RLS 정책 문제인 경우, 기본값을 사용하지 않고 에러 상태로 처리
+      // 하지만 앱이 크래시되지 않도록 임시로 기본값 사용
+    }
+    
     // 기본값을 사용하지 않고, 실제 데이터베이스에서 조회 실패를 명확히 표시
     // 하지만 앱이 크래시되지 않도록 임시로 기본값 사용 (나중에 개선 필요)
     userProfile = {
@@ -169,7 +181,16 @@ export default async function DashboardPage() {
       role: 'student', // 임시 기본값 - 실제로는 데이터베이스 조회 실패를 해결해야 함
       student_id: null,
     }
-    console.warn('Using fallback profile - this should be investigated')
+    console.warn('Using fallback profile - this should be investigated. Check database and RLS policies.')
+  } else {
+    // 성공적으로 조회된 경우에도 로그 출력 (디버깅용)
+    console.log('User profile successfully fetched:', {
+      id: userProfile.id,
+      email: userProfile.email,
+      name: userProfile.name,
+      role: userProfile.role,
+      student_id: userProfile.student_id
+    })
   }
 
   // 안전하게 데이터 가져오기 (에러 발생 시 빈 배열 반환)
