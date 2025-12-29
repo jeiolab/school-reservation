@@ -193,10 +193,12 @@ export default function AdminDashboard() {
     if (status === 'rejected') {
       updateData.rejection_reason = (reason || '').trim()
       updateData.approved_by = null // 거부 시 승인자 정보 제거
-      updateData.rejected_by = user.id // 거부 시 현재 사용자 ID 저장
+      // UUID 타입으로 명시적 변환
+      updateData.rejected_by = user.id ? String(user.id) : null
     } else {
       updateData.rejection_reason = null
-      updateData.approved_by = user.id // 승인 시 현재 사용자 ID 저장
+      // UUID 타입으로 명시적 변환
+      updateData.approved_by = user.id ? String(user.id) : null
       updateData.rejected_by = null // 승인 시 거부자 정보 제거
     }
 
