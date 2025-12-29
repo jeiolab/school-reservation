@@ -151,8 +151,7 @@ export default async function DashboardPage() {
       console.log('Successfully fetched user profile:', userProfile)
     }
 
-  // userProfile이 null인 경우 - 에러를 로그에 남기고 기본값 사용하지 않음
-  // 대신 에러 페이지로 리다이렉트하거나 명확한 에러 메시지 표시
+  // userProfile이 null인 경우 - auth metadata에서 role 확인 시도
   if (!userProfile) {
     console.error('CRITICAL: User profile is null after all attempts', {
       userId: user.id,
@@ -164,23 +163,56 @@ export default async function DashboardPage() {
       errorHint: profileError?.hint
     })
     
-    // RLS 정책 오류인 경우 명확한 메시지 표시
-    if (profileError?.code === 'PGRST301' || profileError?.message?.includes('permission denied') || profileError?.message?.includes('policy')) {
-      console.error('RLS policy error detected - user may not have permission to view their own profile')
-      // RLS 정책 문제인 경우, 기본값을 사용하지 않고 에러 상태로 처리
-      // 하지만 앱이 크래시되지 않도록 임시로 기본값 사용
-    }
+    // auth metadata에서 role 확인 시도 (회원가입 시 저장된 정보)
+    const authRole = user.user_metadata?.role
+    const authName = user.user_metadata?.name || user.email?.split('@')[0] || '사용자'
     
-    // 기본값을 사용하지 않고, 실제 데이터베이스에서 조회 실패를 명확히 표시
-    // 하지만 앱이 크래시되지 않도록 임시로 기본값 사용 (나중에 개선 필요)
-    userProfile = {
-      id: user.id,
-      email: user.email,
-      name: user.email?.split('@')[0] || '사용자',
-      role: 'student', // 임시 기본값 - 실제로는 데이터베이스 조회 실패를 해결해야 함
-      student_id: null,
+    if (authRole && (authRole === 'student' || authRole === 'teacher' || authRole === 'admin')) {
+      // auth metadata에서 유효한 role을 찾은 경우, 임시 프로필 생성
+      console.warn('Using auth metadata role as fallback:', authRole)
+      userProfile = {
+        id: user.id,
+        email: user.email,
+        name: authName,
+        role: authRole,
+        student_id: user.user_metadata?.student_id || null,
+      }
+      
+      // 데이터베이스에 프로필이 없으면 생성 시도
+      try {
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: user.id,
+            email: user.email,
+            name: authName,
+            role: authRole,
+            student_id: user.user_metadata?.student_id || null,
+          })
+        
+        if (insertError) {
+          console.error('Error creating user profile from auth metadata:', insertError)
+        } else {
+          console.log('User profile created from auth metadata')
+          // 생성 후 다시 조회
+          const { data: newProfile } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', user.id)
+            .single()
+          
+          if (newProfile) {
+            userProfile = newProfile
+          }
+        }
+      } catch (insertErr) {
+        console.error('Error attempting to create user profile:', insertErr)
+      }
+    } else {
+      // auth metadata에도 role이 없거나 유효하지 않은 경우
+      console.error('No valid role found in auth metadata. Redirecting to login.')
+      redirect('/login')
     }
-    console.warn('Using fallback profile - this should be investigated. Check database and RLS policies.')
   } else {
     // 성공적으로 조회된 경우에도 로그 출력 (디버깅용)
     console.log('User profile successfully fetched:', {
@@ -267,7 +299,7 @@ export default async function DashboardPage() {
         {/* Welcome Section */}
         <div className="mb-6 sm:mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-            안녕하세요, {userProfile?.name || '학생'}
+            안녕하세요, {userProfile?.name || user.email?.split('@')[0] || '사용자'}
             {userProfile?.student_id && ` (${formatStudentId(userProfile.student_id)})`}
             님
           </h2>
