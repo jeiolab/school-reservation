@@ -120,19 +120,18 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
       }
 
       // Create reservations for all dates
-      // UUID 형식 검증 및 명시적 변환
+      // 명시적 변환 (UUID 검증은 제거 - 데이터베이스에서 처리)
       const userIdString = String(userId).trim()
       const roomIdString = String(validatedData.roomId).trim()
       
-      // UUID 형식 검증 (간단한 체크)
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      if (!uuidRegex.test(userIdString)) {
-        setError('사용자 ID 형식이 올바르지 않습니다.')
+      // 빈 값 체크
+      if (!userIdString || userIdString === '') {
+        setError('사용자 ID가 없습니다. 다시 로그인해주세요.')
         setLoading(false)
         return
       }
-      if (!uuidRegex.test(roomIdString)) {
-        setError('실 ID 형식이 올바르지 않습니다.')
+      if (!roomIdString || roomIdString === '') {
+        setError('실을 선택해주세요.')
         setLoading(false)
         return
       }
@@ -204,6 +203,16 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
         .select()
 
       if (insertError) {
+        // Check for type casting errors
+        if (insertError.message.includes('cannot cast') || insertError.message.includes('bigint') || insertError.message.includes('uuid')) {
+          console.error('Type casting error:', insertError)
+          console.error('userId:', userIdString)
+          console.error('roomId:', roomIdString)
+          setError('데이터베이스 타입 오류가 발생했습니다. 관리자에게 문의해주세요.')
+          setLoading(false)
+          return
+        }
+        
         // Check if it's a double booking error
         if (insertError.message.includes('이미 예약이 존재합니다')) {
           // 데이터베이스 트리거에서 발생한 오류인 경우, pending 상태인지 확인하기 위해 다시 조회
