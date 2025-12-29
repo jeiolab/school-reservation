@@ -86,71 +86,79 @@ function calculateDaysUntil(date: string | Date) {
 }
 
 export default async function DashboardPage() {
-  // 캐시 비활성화 - 항상 최신 사용자 정보를 가져오기 위해
-  noStore()
-  
-  const supabase = await createClient()
-  
-  // 세션 명시적으로 새로고침
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-  if (sessionError) {
-    console.error('Session error:', sessionError)
-  }
-  
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-
-  if (!user || userError) {
-    console.error('User auth error:', userError)
-    redirect('/login')
-  }
-
-  // Get user profile with retry logic
-  let userProfile: any = null
-  let profileError: any = null
-  
-  // 첫 번째 시도
-  let { data: profileData, error: firstError } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
-  if (firstError) {
-    console.error('First attempt - Error fetching user profile:', {
-      code: firstError.code,
-      message: firstError.message,
-      details: firstError.details,
-      hint: firstError.hint,
-      userId: user.id
-    })
+  try {
+    // 캐시 비활성화 - 항상 최신 사용자 정보를 가져오기 위해
+    noStore()
     
-    // 세션을 새로고침하고 재시도
-    await supabase.auth.refreshSession()
+    const supabase = await createClient()
     
-    // 두 번째 시도
-    const retryResult = await supabase
+    // 세션 명시적으로 새로고침
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError) {
+      console.error('Session error:', sessionError)
+    }
+    
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (!user || userError) {
+      console.error('User auth error:', userError)
+      redirect('/login')
+    }
+
+    // Get user profile with retry logic
+    let userProfile: any = null
+    let profileError: any = null
+    
+    // 첫 번째 시도
+    let { data: profileData, error: firstError } = await supabase
       .from('users')
       .select('*')
       .eq('id', user.id)
       .single()
-    
-    if (retryResult.error) {
-      console.error('Second attempt - Error fetching user profile:', {
-        code: retryResult.error.code,
-        message: retryResult.error.message,
-        details: retryResult.error.details,
-        hint: retryResult.error.hint,
+
+    if (firstError) {
+      console.error('First attempt - Error fetching user profile:', {
+        code: firstError.code,
+        message: firstError.message,
+        details: firstError.details,
+        hint: firstError.hint,
         userId: user.id
       })
-      profileError = retryResult.error
+      
+      // 세션을 새로고침하고 재시도 (에러 처리 포함)
+      try {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
+        if (refreshError) {
+          console.warn('Session refresh error (non-critical):', refreshError)
+        }
+      } catch (refreshErr) {
+        console.warn('Session refresh exception (non-critical):', refreshErr)
+      }
+      
+      // 두 번째 시도
+      const retryResult = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+      
+      if (retryResult.error) {
+        console.error('Second attempt - Error fetching user profile:', {
+          code: retryResult.error.code,
+          message: retryResult.error.message,
+          details: retryResult.error.details,
+          hint: retryResult.error.hint,
+          userId: user.id
+        })
+        profileError = retryResult.error
+      } else {
+        userProfile = retryResult.data
+        console.log('Successfully fetched user profile on retry:', userProfile)
+      }
     } else {
-      userProfile = retryResult.data
-      console.log('Successfully fetched user profile on retry:', userProfile)
+      userProfile = profileData
+      console.log('Successfully fetched user profile:', userProfile)
     }
-  } else {
-    userProfile = profileData
-    console.log('Successfully fetched user profile:', userProfile)
-  }
 
   // userProfile이 null인 경우 - 에러를 로그에 남기고 기본값 사용하지 않음
   // 대신 에러 페이지로 리다이렉트하거나 명확한 에러 메시지 표시
@@ -504,5 +512,10 @@ export default async function DashboardPage() {
       </div>
     </div>
   )
+  } catch (error) {
+    console.error('Dashboard page error:', error)
+    // 에러 발생 시 로그인 페이지로 리다이렉트
+    redirect('/login')
+  }
 }
 
