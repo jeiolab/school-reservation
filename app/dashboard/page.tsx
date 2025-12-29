@@ -172,9 +172,9 @@ export default async function DashboardPage() {
     if (authRole && (authRole === 'student' || authRole === 'teacher' || authRole === 'admin')) {
       // auth metadata에서 유효한 role을 찾은 경우, 임시 프로필 생성
       console.warn('Using auth metadata role as fallback:', authRole)
-      userProfile = {
-        id: user.id,
-        email: user.email,
+    userProfile = {
+      id: user.id,
+      email: user.email,
         name: authName,
         role: authRole,
         student_id: user.user_metadata?.student_id || null,

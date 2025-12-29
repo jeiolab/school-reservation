@@ -125,6 +125,7 @@ export default function TeacherSignupForm() {
 
       // 2. users 테이블에 교직원 정보 저장 (role: 'teacher')
       // 트리거가 이미 실행되었을 수 있으므로 UPSERT 사용
+      // updated_at은 트리거가 자동으로 처리하므로 명시하지 않음
       const { error: upsertError } = await supabase
         .from('users')
         .upsert({
@@ -133,6 +134,7 @@ export default function TeacherSignupForm() {
           name: validatedData.name,
           role: 'teacher', // 교직원 역할
           student_id: null, // 교직원은 학번 없음
+          // updated_at은 제외 - 트리거가 자동으로 처리
         }, {
           onConflict: 'id'
         })

@@ -109,7 +109,7 @@ export async function middleware(request: NextRequest) {
       pathname === '/login' ||
       pathname === '/signup' ||
       pathname.startsWith('/signup/')
-    ) {
+  ) {
       // 리디렉션 응답 생성
       const redirectResponse = NextResponse.redirect(new URL('/dashboard', request.url))
       return redirectResponse
