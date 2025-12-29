@@ -125,13 +125,16 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
         const endTime = new Date(date.getTime() + timeDiff)
         
         return {
-          user_id: userId,
-          room_id: validatedData.roomId,
+          user_id: userId, // UUID 타입으로 전달
+          room_id: validatedData.roomId, // UUID 타입으로 전달
           start_time: startTime.toISOString(),
           end_time: endTime.toISOString(),
           purpose: validatedData.purpose,
           attendees: attendeesArray,
           status: initialStatus,
+          // approved_by와 rejected_by는 명시적으로 null로 설정하여 타입 오류 방지
+          approved_by: null,
+          rejected_by: null,
         }
       })
 

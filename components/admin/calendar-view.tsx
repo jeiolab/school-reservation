@@ -18,6 +18,7 @@ function getKoreaDate() {
 interface ReservationWithDetails extends Reservation {
   rooms: Room | null
   users: UserType | null
+  approved_by_user?: UserType | null
 }
 
 interface CalendarViewProps {
@@ -60,7 +61,8 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
       .select(`
         *,
         rooms (*),
-        users!user_id (*)
+        users!user_id (*),
+        approved_by_user:users!approved_by (*)
       `)
       .eq('status', 'confirmed')
       .gte('start_time', utcMonthStart.toISOString())
@@ -227,9 +229,14 @@ export default function CalendarView({ filter = 'all' }: CalendarViewProps) {
                         <div className="font-semibold text-gray-900 mb-1">
                           {room?.name || '알 수 없음'}
                         </div>
-                        <div className="text-sm text-gray-600">
-                          {user?.name || '알 수 없음'} ({user?.email})
-                        </div>
+                    <div className="text-sm text-gray-600">
+                      {user?.name || '알 수 없음'} ({user?.email})
+                    </div>
+                    {reservation.approved_by_user && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        승인자: {reservation.approved_by_user.name}
+                      </div>
+                    )}
                       </div>
                       <Badge className={getStatusColor(reservation.status)}>
                         {reservation.status === 'confirmed'
