@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS rooms_new (
 );
 
 -- Step 4: Migrate rooms data and create mapping
-INSERT INTO rooms_new (name, capacity, location, facilities, is_available, restricted_hours, notes, created_at, updated_at)
+-- Note: created_at and updated_at will use DEFAULT values (current timestamp)
+INSERT INTO rooms_new (name, capacity, location, facilities, is_available, restricted_hours, notes)
 SELECT 
   name,
   capacity,
@@ -37,9 +38,7 @@ SELECT
   facilities,
   is_available,
   restricted_hours,
-  notes,
-  created_at,
-  updated_at
+  notes
 FROM rooms_backup;
 
 -- Step 5: Create mapping (match by name and location to ensure uniqueness)
@@ -52,29 +51,105 @@ SELECT
 FROM rooms_backup r_old
 JOIN rooms_new r_new ON r_old.name = r_new.name AND r_old.location = r_new.location;
 
--- Step 6: Update reservations.room_id to use new UUIDs
-UPDATE reservations r
-SET room_id = m.new_id::text
-FROM rooms_id_mapping m
-WHERE r.room_id::bigint = m.old_id;
+-- Step 6: Handle room_restrictions table FIRST (before reservations)
+-- This prevents trigger function errors during migration
+DO $$
+BEGIN
+  -- Check if room_restrictions table exists
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'room_restrictions') THEN
+    -- Drop any triggers that might use room_restrictions
+    DROP TRIGGER IF EXISTS check_room_restrictions_trigger ON reservations;
+    
+    -- Drop foreign key constraint
+    ALTER TABLE room_restrictions 
+    DROP CONSTRAINT IF EXISTS room_restrictions_room_id_fkey;
+    
+    -- Change room_id from bigint to text temporarily
+    ALTER TABLE room_restrictions 
+    ALTER COLUMN room_id TYPE TEXT USING room_id::text;
+    
+    -- Update room_restrictions.room_id to use new UUIDs
+    UPDATE room_restrictions rr
+    SET room_id = m.new_id::text
+    FROM rooms_id_mapping m
+    WHERE rr.room_id = m.old_id::text;
+    
+    -- Change room_restrictions.room_id from text to uuid
+    ALTER TABLE room_restrictions 
+    ALTER COLUMN room_id TYPE UUID USING room_id::uuid;
+  END IF;
+END $$;
 
--- Step 7: Drop foreign key constraint
+-- Step 7: Drop foreign key constraint for reservations
 ALTER TABLE reservations 
 DROP CONSTRAINT IF EXISTS reservations_room_id_fkey;
 
--- Step 8: Drop old rooms table and rename new one
+-- Step 8: Change reservations.room_id from bigint to text temporarily
+-- This allows us to update the values
+ALTER TABLE reservations 
+ALTER COLUMN room_id TYPE TEXT USING room_id::text;
+
+-- Step 9: Update reservations.room_id to use new UUIDs
+UPDATE reservations r
+SET room_id = m.new_id::text
+FROM rooms_id_mapping m
+WHERE r.room_id = m.old_id::text;
+
+-- Step 10: Change reservations.room_id from text to uuid
+ALTER TABLE reservations 
+ALTER COLUMN room_id TYPE UUID USING room_id::uuid;
+
+-- Step 11: Drop old rooms table and rename new one
 DROP TABLE IF EXISTS rooms CASCADE;
 ALTER TABLE rooms_new RENAME TO rooms;
 
--- Step 9: Recreate foreign key constraint
+-- Step 12: Recreate foreign key constraints
 ALTER TABLE reservations 
 ADD CONSTRAINT reservations_room_id_fkey 
 FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE;
 
--- Step 10: Recreate indexes
+-- Recreate room_restrictions foreign key if table exists
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'room_restrictions') THEN
+    ALTER TABLE room_restrictions 
+    ADD CONSTRAINT room_restrictions_room_id_fkey 
+    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+-- Step 13: Recreate indexes
 CREATE INDEX IF NOT EXISTS idx_reservations_room_id ON reservations(room_id);
 
--- Step 11: Verify the fix
+-- Step 14: Recreate check_room_restrictions trigger function if it exists
+-- This function should work with UUID now
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'room_restrictions') THEN
+    -- Recreate the trigger function to work with UUID
+    CREATE OR REPLACE FUNCTION check_room_restrictions()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM room_restrictions 
+        WHERE room_id = NEW.room_id::uuid 
+        AND is_active = true
+      ) THEN
+        RAISE EXCEPTION '해당 실에 활성화된 사용금지 공지가 있습니다.';
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Recreate the trigger
+    CREATE TRIGGER check_room_restrictions_trigger
+    BEFORE INSERT OR UPDATE ON reservations
+    FOR EACH ROW
+    EXECUTE FUNCTION check_room_restrictions();
+  END IF;
+END $$;
+
+-- Step 15: Verify the fix
 SELECT 
   'rooms' as table_name,
   'id' as column_name,
@@ -84,7 +159,7 @@ SELECT
 FROM information_schema.columns
 WHERE table_name = 'rooms' AND column_name = 'id';
 
--- Step 12: Verify reservations.room_id matches rooms.id
+-- Step 16: Verify reservations.room_id matches rooms.id
 SELECT 
   COUNT(*) as total_reservations,
   COUNT(DISTINCT r.room_id) as unique_room_ids,
@@ -92,7 +167,7 @@ SELECT
 FROM reservations r
 LEFT JOIN rooms rm ON r.room_id::uuid = rm.id;
 
--- Step 13: Clean up (optional - keep for safety)
+-- Step 17: Clean up (optional - keep for safety)
 -- DROP TABLE IF EXISTS rooms_backup;
 -- DROP TABLE IF EXISTS rooms_id_mapping;
 

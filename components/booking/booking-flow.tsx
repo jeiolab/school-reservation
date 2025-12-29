@@ -136,6 +136,17 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
         return
       }
       
+      // roomId가 bigint 형식인지 확인 (숫자만 있는 경우)
+      // UUID 형식: 8-4-4-4-12 (총 36자, 하이픈 포함)
+      // bigint 형식: 숫자만 (예: '3', '123')
+      const isBigIntFormat = /^\d+$/.test(roomIdString) && roomIdString.length < 36
+      if (isBigIntFormat) {
+        console.error('roomId is in bigint format:', roomIdString)
+        setError('데이터베이스 스키마 오류: rooms 테이블의 id가 bigint로 되어 있습니다. 관리자에게 문의하여 마이그레이션 스크립트를 실행해주세요.')
+        setLoading(false)
+        return
+      }
+      
       const reservations = reservationDates.map(date => {
         const startTime = new Date(date)
         const endTime = new Date(date.getTime() + timeDiff)
