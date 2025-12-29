@@ -77,23 +77,33 @@ WHEN (NEW.status IN ('pending', 'confirmed'))
 EXECUTE FUNCTION check_overlapping_reservations();
 
 -- Recreate check_room_restrictions trigger (if room_restrictions table exists)
+-- First drop existing function and trigger
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'room_restrictions') THEN
-    CREATE OR REPLACE FUNCTION check_room_restrictions()
-    RETURNS TRIGGER AS $$
-    BEGIN
-      IF EXISTS (
-        SELECT 1 FROM room_restrictions 
-        WHERE room_id = NEW.room_id::uuid 
-        AND is_active = true
-      ) THEN
-        RAISE EXCEPTION '해당 실에 활성화된 사용금지 공지가 있습니다.';
-      END IF;
-      RETURN NEW;
-    END;
-    $$ LANGUAGE plpgsql;
-    
+    DROP FUNCTION IF EXISTS check_room_restrictions() CASCADE;
+  END IF;
+END $$;
+
+-- Recreate the function (outside DO block)
+CREATE OR REPLACE FUNCTION check_room_restrictions()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM room_restrictions 
+    WHERE room_id = NEW.room_id::uuid 
+    AND is_active = true
+  ) THEN
+    RAISE EXCEPTION '해당 실에 활성화된 사용금지 공지가 있습니다.';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Recreate the trigger (only if room_restrictions table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'room_restrictions') THEN
     CREATE TRIGGER check_room_restrictions_trigger
     BEFORE INSERT OR UPDATE ON reservations
     FOR EACH ROW
