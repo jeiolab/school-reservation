@@ -9,6 +9,7 @@ import LogoutButton from '@/components/auth/logout-button'
 import DeleteAccountButton from '@/components/auth/delete-account-button'
 import { formatStudentId, toKoreaTime } from '@/lib/utils'
 import StudentIdDisplay from '@/components/user/student-id-display'
+import { unstable_noStore as noStore } from 'next/cache'
 
 // 한국 시간 기준 현재 날짜 가져오기
 function getKoreaDate() {
@@ -85,6 +86,9 @@ function calculateDaysUntil(date: string | Date) {
 }
 
 export default async function DashboardPage() {
+  // 캐시 비활성화 - 항상 최신 사용자 정보를 가져오기 위해
+  noStore()
+  
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -92,12 +96,38 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  // Get user profile
-  const { data: userProfile } = await supabase
+  // Get user profile with error handling
+  let userProfile: any = null
+  const { data: profileData, error: profileError } = await supabase
     .from('users')
     .select('*')
     .eq('id', user.id)
     .single()
+
+  if (profileError) {
+    console.error('Error fetching user profile:', profileError)
+    // RLS 정책 오류인 경우 재시도
+    if (profileError.code === 'PGRST301' || profileError.message?.includes('permission denied') || profileError.message?.includes('policy')) {
+      console.warn('RLS policy error, user may not have permission to view their own profile')
+      // 사용자가 자신의 프로필을 볼 수 없는 경우, 기본값 사용
+    } else {
+      console.error('Unexpected error fetching user profile:', profileError)
+    }
+  } else {
+    userProfile = profileData
+  }
+
+  // userProfile이 null인 경우 기본값 설정 (에러 방지)
+  if (!userProfile) {
+    console.warn('User profile is null, using default values')
+    userProfile = {
+      id: user.id,
+      email: user.email,
+      name: user.email?.split('@')[0] || '사용자',
+      role: 'student', // 기본값
+      student_id: null,
+    }
+  }
 
   // 안전하게 데이터 가져오기 (에러 발생 시 빈 배열 반환)
   let upcomingReservations: any[] = []

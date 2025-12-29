@@ -5,7 +5,12 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Building2, ArrowLeft, AlertCircle, Archive } from 'lucide-react'
 
+import { unstable_noStore as noStore } from 'next/cache'
+
 export default async function AdminPage() {
+  // 캐시 비활성화 - 항상 최신 사용자 정보를 가져오기 위해
+  noStore()
+  
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -13,12 +18,18 @@ export default async function AdminPage() {
     redirect('/login')
   }
 
-  // Check if user is admin or teacher
-  const { data: userProfile } = await supabase
+  // Check if user is admin or teacher with error handling
+  const { data: userProfile, error: profileError } = await supabase
     .from('users')
     .select('role')
     .eq('id', user.id)
     .single()
+
+  if (profileError) {
+    console.error('Error fetching user profile in admin page:', profileError)
+    // RLS 정책 오류인 경우 재시도하지 않고 대시보드로 리다이렉트
+    redirect('/dashboard')
+  }
 
   if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'teacher')) {
     redirect('/dashboard')
