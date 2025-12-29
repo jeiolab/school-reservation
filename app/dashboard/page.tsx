@@ -306,7 +306,7 @@ export default async function DashboardPage() {
             님
           </h2>
           <p className="text-sm sm:text-base text-gray-600">
-            특별실 예약을 시작해보세요
+            특별실 사용은 예약 시스템으로 운영됩니다.
           </p>
         </div>
 
@@ -322,10 +322,12 @@ export default async function DashboardPage() {
                   <h3 className="text-base sm:text-lg font-bold text-blue-900 mb-2">
                     예약 안내
                   </h3>
-                  <p className="text-sm sm:text-base text-blue-800 leading-relaxed">
-                    특별실 사용은 예약 시스템으로 운영됩니다. 예약 후 담당 선생님에게 구두로 허락을 요청하세요. 이후 담당 선생님께서 승인을 해주셔야 예약 완료가 되며, 예약 완료 후 특별실을 사용할 수 있습니다.
-                  </p>
-                </div>
+                  
+                </div><ul className="list-none space-y-2 text-sm sm:text-base text-blue-800 leading-relaxed">
+                    <li>1. 예약 후 담당 선생님에게 구두로 허락을 요청하세요. 이후 담당 선생님께서 승인을 해주셔야 예약 완료가 되며, 예약 완료 후 특별실을 사용할 수 있습니다.</li>
+                    <li>2. 주말 사용시에는 평일 사전에 담당 선생님께 승인을 받고 사용하도록 합니다. 주말에는 담당 선생님이 없으므로 승인을 받지 못할 수 있습니다.</li>
+                    <li>3. 동아리 활동은 동아리 담당 선생님께, 그외 활동은 활동 담당 선생님께, 또 그외는 실담당 선생님, 담임 선생님, 자율감독 선생님께 승인을 요청하세요.</li>
+                  </ul>
               </div>
             </CardContent>
           </Card>
