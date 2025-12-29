@@ -315,19 +315,28 @@ export default async function DashboardPage() {
           <Card className="bg-blue-50 border-l-4 border-l-blue-600 shadow-md">
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-start gap-3 sm:gap-4">
-                <div className="flex-shrink-0 mt-0.5">
+                <div className="flex-shrink-0 mt-1">
                   <Info className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-base sm:text-lg font-bold text-blue-900 mb-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg font-bold text-blue-900 mb-3 sm:mb-4">
                     예약 안내
                   </h3>
-                  
-                </div><ul className="list-none space-y-2 text-sm sm:text-base text-blue-800 leading-relaxed">
-                    <li>1. 예약 후 담당 선생님에게 구두로 허락을 요청하세요. 이후 담당 선생님께서 승인을 해주셔야 예약 완료가 되며, 예약 완료 후 특별실을 사용할 수 있습니다.</li>
-                    <li>2. 주말 사용시에는 평일 사전에 담당 선생님께 승인을 받고 사용하도록 합니다. 주말에는 담당 선생님이 없으므로 승인을 받지 못할 수 있습니다.</li>
-                    <li>3. 동아리 활동은 동아리 담당 선생님께, 그외 활동은 활동 담당 선생님께, 또 그외는 실담당 선생님, 담임 선생님, 자율감독 선생님께 승인을 요청하세요.</li>
+                  <ul className="list-none space-y-2.5 sm:space-y-3 text-sm sm:text-base text-blue-800 leading-relaxed">
+                    <li className="flex items-start gap-2">
+                      <span className="font-semibold flex-shrink-0">1.</span>
+                      <span>예약 후 담당 선생님에게 구두로 허락을 요청하세요. 이후 담당 선생님께서 승인을 해주셔야 예약 완료가 되며, 예약 완료 후 특별실을 사용할 수 있습니다.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="font-semibold flex-shrink-0">2.</span>
+                      <span>주말 사용시에는 평일 사전에 담당 선생님께 승인을 받고 사용하도록 합니다. 주말에는 담당 선생님이 없으므로 승인을 받지 못할 수 있습니다.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="font-semibold flex-shrink-0">3.</span>
+                      <span>동아리 활동은 동아리 담당 선생님께, 그외 활동은 활동 담당 선생님께, 또 그외는 실담당 선생님, 담임 선생님, 자율감독 선생님께 승인을 요청하세요.</span>
+                    </li>
                   </ul>
+                </div>
               </div>
             </CardContent>
           </Card>
