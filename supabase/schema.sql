@@ -81,7 +81,7 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM reservations
     WHERE room_id = NEW.room_id
-      AND id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::uuid)
+      AND (NEW.id IS NULL OR id::uuid != NEW.id::uuid)
       AND status IN ('pending', 'confirmed')
       AND start_time < NEW.end_time
       AND end_time > NEW.start_time
