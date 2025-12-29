@@ -40,6 +40,9 @@ CREATE TABLE reservations (
   purpose TEXT NOT NULL,
   status reservation_status NOT NULL DEFAULT 'pending',
   attendees TEXT[] DEFAULT '{}',
+  rejection_reason TEXT,
+  approved_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  rejected_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   CONSTRAINT valid_time_range CHECK (end_time > start_time)
