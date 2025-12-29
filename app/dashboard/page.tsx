@@ -102,6 +102,8 @@ export default async function DashboardPage() {
 
     if (!user || userError) {
       console.error('User auth error:', userError)
+      // 쿠키 삭제 후 로그인 페이지로 리디렉션
+      // middleware에서 이미 처리하지만, 여기서도 안전하게 처리
       redirect('/login')
     }
 

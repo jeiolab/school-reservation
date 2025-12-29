@@ -39,14 +39,43 @@ export async function middleware(request: NextRequest) {
   )
 
   // Set session
-  const { data: { session } } = await supabase.auth.setSession({
+  const { data: { session }, error: sessionError } = await supabase.auth.setSession({
     access_token: accessToken,
     refresh_token: refreshToken,
   })
 
+  // 세션이 유효하지 않으면 쿠키 삭제하고 계속 진행
+  if (sessionError || !session) {
+    const invalidResponse = NextResponse.next()
+    invalidResponse.cookies.delete('sb-access-token')
+    invalidResponse.cookies.delete('sb-refresh-token')
+    
+    // 대시보드나 관리자 페이지 접근 시에만 로그인으로 리디렉션
+    if (request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/admin')) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    
+    return invalidResponse
+  }
+
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser()
+
+  // 사용자 정보를 가져올 수 없으면 쿠키 삭제
+  if (userError || !user) {
+    const invalidResponse = NextResponse.next()
+    invalidResponse.cookies.delete('sb-access-token')
+    invalidResponse.cookies.delete('sb-refresh-token')
+    
+    // 대시보드나 관리자 페이지 접근 시에만 로그인으로 리디렉션
+    if (request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/admin')) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    
+    return invalidResponse
+  }
 
   // Protect dashboard routes
   if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
@@ -72,13 +101,18 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from login/signup pages and home page
+  // 단, 이미 리디렉션 중인 경우는 제외 (무한 루프 방지)
   if (user) {
+    const pathname = request.nextUrl.pathname
     if (
-      request.nextUrl.pathname === '/' ||
-      request.nextUrl.pathname.startsWith('/login') || 
-      request.nextUrl.pathname.startsWith('/signup')
+      pathname === '/' ||
+      pathname === '/login' ||
+      pathname === '/signup' ||
+      pathname.startsWith('/signup/')
     ) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      // 리디렉션 응답 생성
+      const redirectResponse = NextResponse.redirect(new URL('/dashboard', request.url))
+      return redirectResponse
     }
   }
 
