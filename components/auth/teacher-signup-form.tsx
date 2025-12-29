@@ -70,7 +70,10 @@ export default function TeacherSignupForm() {
       const supabase = createClient()
 
       // 1. Supabase Auth로 회원가입 (metadata에 role 포함)
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      let authData: any = null
+      let signUpError: any = null
+      
+      const signUpResult = await supabase.auth.signUp({
         email: validatedData.email,
         password: validatedData.password,
         options: {
@@ -81,14 +84,40 @@ export default function TeacherSignupForm() {
           },
         },
       })
+      
+      authData = signUpResult.data
+      signUpError = signUpResult.error
 
-      if (signUpError) {
+      // "User already registered" 에러인 경우, 로그인을 시도하고 users 테이블에만 정보 업데이트
+      if (signUpError && (signUpError.message?.includes('already registered') || signUpError.message?.includes('User already registered'))) {
+        // 이미 등록된 사용자이므로 로그인 시도
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: validatedData.email,
+          password: validatedData.password,
+        })
+
+        if (signInError) {
+          setError('이미 등록된 이메일입니다. 비밀번호가 올바른지 확인하거나 로그인 페이지에서 로그인해주세요.')
+          setLoading(false)
+          return
+        }
+
+        if (!signInData.user) {
+          setError('로그인에 실패했습니다. 로그인 페이지에서 다시 시도해주세요.')
+          setLoading(false)
+          return
+        }
+
+        // 로그인 성공 - users 테이블에 정보 업데이트
+        authData = signInData
+      } else if (signUpError) {
+        // 다른 에러인 경우
         setError(signUpError.message)
         setLoading(false)
         return
       }
 
-      if (!authData.user) {
+      if (!authData || !authData.user) {
         setError('회원가입에 실패했습니다.')
         setLoading(false)
         return
@@ -144,15 +173,23 @@ export default function TeacherSignupForm() {
         }
       }
 
-      // 3. 이메일 확인이 비활성화된 경우 자동 로그인
+      // 3. 세션 설정 및 자동 로그인
       // 세션이 있으면 바로 로그인, 없으면 이메일 확인 필요 안내
-      if (authData.session) {
-        // 이메일 확인이 비활성화된 경우 - 세션을 쿠키에 저장하고 바로 로그인
+      let session = authData.session
+      
+      // 세션이 없으면 현재 세션 확인
+      if (!session) {
+        const { data: sessionData } = await supabase.auth.getSession()
+        session = sessionData.session
+      }
+      
+      if (session) {
+        // 세션이 있는 경우 - 쿠키에 저장하고 바로 로그인
         const maxAge = 604800 * 4 // 4주
         const isProduction = process.env.NODE_ENV === 'production'
         const secureFlag = isProduction ? '; Secure' : ''
-        document.cookie = `sb-access-token=${authData.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`
-        document.cookie = `sb-refresh-token=${authData.session.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax${secureFlag}`
+        document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`
+        document.cookie = `sb-refresh-token=${session.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax${secureFlag}`
         
         // 페이지 새로고침하여 서버에서 세션 인식
         window.location.href = '/dashboard'
