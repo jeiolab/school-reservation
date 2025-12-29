@@ -206,9 +206,27 @@ export default function BookingFlow({ userId }: BookingFlowProps) {
         // Check for type casting errors
         if (insertError.message.includes('cannot cast') || insertError.message.includes('bigint') || insertError.message.includes('uuid')) {
           console.error('Type casting error:', insertError)
-          console.error('userId:', userIdString)
-          console.error('roomId:', roomIdString)
-          setError('데이터베이스 타입 오류가 발생했습니다. 관리자에게 문의해주세요.')
+          console.error('Error details:', {
+            message: insertError.message,
+            details: insertError.details,
+            hint: insertError.hint,
+            code: insertError.code
+          })
+          console.error('Data being inserted:', {
+            userId: userIdString,
+            roomId: roomIdString,
+            userIdType: typeof userIdString,
+            roomIdType: typeof roomIdString,
+            userIdLength: userIdString.length,
+            roomIdLength: roomIdString.length
+          })
+          
+          // 개발 환경에서는 더 자세한 오류 메시지 표시
+          const errorMessage = process.env.NODE_ENV === 'development' 
+            ? `데이터베이스 타입 오류: ${insertError.message}`
+            : '데이터베이스 타입 오류가 발생했습니다. 관리자에게 문의해주세요.'
+          
+          setError(errorMessage)
           setLoading(false)
           return
         }
