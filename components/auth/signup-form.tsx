@@ -112,10 +112,17 @@ export default function SignupForm() {
 
       const supabase = createClient()
 
-      // 1. Supabase Auth로 회원가입
+      // 1. Supabase Auth로 회원가입 (metadata에 정보 포함)
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: validatedData.email,
         password: validatedData.password,
+        options: {
+          data: {
+            name: validatedData.name,
+            role: 'student',
+            student_id: validatedData.studentId,
+          },
+        },
       })
 
       if (signUpError) {
@@ -131,15 +138,42 @@ export default function SignupForm() {
       }
 
       // 2. users 테이블에 사용자 정보 저장
-      const { error: insertError } = await supabase
-        .from('users')
-        .insert({
-          id: authData.user.id,
-          email: validatedData.email,
-          name: validatedData.name,
-          role: 'student', // 기본값은 student
-          student_id: validatedData.studentId,
-        })
+      // 트리거가 자동으로 생성하지만, 세션이 있는 경우 수동으로도 시도
+      let insertError = null
+      
+      if (authData.session) {
+        // 세션을 쿠키에 저장하여 서버에서 인식 가능하도록 함
+        const maxAge = 604800 * 4 // 4주
+        const isProduction = process.env.NODE_ENV === 'production'
+        const secureFlag = isProduction ? '; Secure' : ''
+        document.cookie = `sb-access-token=${authData.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`
+        document.cookie = `sb-refresh-token=${authData.session.refresh_token}; path=/; max-age=${maxAge * 7}; SameSite=Lax${secureFlag}`
+        
+        // 세션 설정 후 잠시 대기
+        await new Promise(resolve => setTimeout(resolve, 200))
+        
+        // 트리거가 이미 생성했을 수 있으므로 확인 후 필요시 INSERT
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', authData.user.id)
+          .single()
+        
+        if (!existingUser) {
+          // 트리거가 작동하지 않은 경우 수동으로 INSERT
+          const { error } = await supabase
+            .from('users')
+            .insert({
+              id: authData.user.id,
+              email: validatedData.email,
+              name: validatedData.name,
+              role: 'student',
+              student_id: validatedData.studentId,
+            })
+          insertError = error
+        }
+      }
+      // 세션이 없는 경우: 트리거가 나중에 생성할 것입니다
 
       if (insertError) {
         console.error('Error inserting user:', insertError)
